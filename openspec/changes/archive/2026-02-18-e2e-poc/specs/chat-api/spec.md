@@ -1,0 +1,43 @@
+## ADDED Requirements
+
+### Requirement: SSE chat streaming endpoint
+The server SHALL expose a `POST /api/chat` endpoint that accepts a JSON body with `model` (string) and `messages` (array of `{role, content}` objects) and returns a `text/event-stream` response streaming tokens in OpenAI Chat Completions chunk format.
+
+Each SSE event SHALL be a JSON object with fields: `id` (string), `object` ("chat.completion.chunk"), `model` (string), and `choices` (array with one entry containing `delta.content` and `index`).
+
+The stream SHALL end with a `data: [DONE]` event.
+
+For Phase 1, the endpoint SHALL return a mock response (hardcoded text streamed word-by-word with ~50ms delay between tokens) regardless of input.
+
+#### Scenario: Successful streaming response
+- **WHEN** a client sends `POST /api/chat` with `{"model": "mock", "messages": [{"role": "user", "content": "hello"}]}`
+- **THEN** the server returns status 200 with `Content-Type: text/event-stream` and streams SSE events where each `data` line is a valid OpenAI chunk JSON, ending with `data: [DONE]`
+
+#### Scenario: Missing required fields
+- **WHEN** a client sends `POST /api/chat` with an empty body or missing `messages` field
+- **THEN** the server returns status 422 with a Pydantic validation error
+
+### Requirement: Health check endpoint
+The server SHALL expose a `GET /health` endpoint that returns a JSON object with `status` ("healthy") and `uptime_seconds` (number).
+
+#### Scenario: Health check response
+- **WHEN** a client sends `GET /health`
+- **THEN** the server returns status 200 with `{"status": "healthy", "uptime_seconds": <number>}`
+
+### Requirement: CORS configuration
+The server SHALL allow cross-origin requests from `http://localhost:3000` so the frontend can call the API directly during development.
+
+#### Scenario: Preflight CORS request from frontend
+- **WHEN** the frontend sends an `OPTIONS` request from `http://localhost:3000` to `/api/chat`
+- **THEN** the server responds with `Access-Control-Allow-Origin: http://localhost:3000` and allows `POST` method with `Content-Type` header
+
+### Requirement: Pydantic request models
+The server SHALL validate incoming chat requests using Pydantic models. The `ChatRequest` model SHALL require `model` (string) and `messages` (list of `ChatMessage`). The `ChatMessage` model SHALL require `role` (string) and `content` (string).
+
+#### Scenario: Valid request passes validation
+- **WHEN** a client sends a request with `model` as a string and `messages` as a list of objects each having `role` and `content` strings
+- **THEN** the request is accepted and processed
+
+#### Scenario: Invalid message structure rejected
+- **WHEN** a client sends a request where a message is missing the `role` field
+- **THEN** the server returns status 422 with a validation error describing the missing field

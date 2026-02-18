@@ -147,6 +147,9 @@ Target archive directory already exists.
 3. Wait until a different date to archive
 ```
 
+After archiving, use the **AskUserQuestion tool** to ask what to do next:
+- "Ship" (commit the work), "New change" (start a new change), "Stop here"
+
 **Guardrails**
 - Always prompt for change selection if not provided
 - Use artifact graph (openspec status --json) for completion checking

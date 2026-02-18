@@ -29,17 +29,14 @@ class NodeRegistry:
             logger.info("Node removed: %s", node_id)
         return node
 
-    def get_node_for_model(self, model_name: str) -> NodeInfo | None:
-        for node in self._nodes.values():
-            if node.has_model(model_name) and node.active_requests < node.max_concurrent:
-                return node
-        return None
-
     def update_heartbeat(self, node_id: str, active_requests: int) -> None:
         node = self._nodes.get(node_id)
         if node:
             node.last_heartbeat = time.time()
             node.active_requests = active_requests
+
+    def all_nodes(self) -> list[NodeInfo]:
+        return list(self._nodes.values())
 
     def get_node(self, node_id: str) -> NodeInfo | None:
         return self._nodes.get(node_id)

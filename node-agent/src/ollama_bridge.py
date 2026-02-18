@@ -1,5 +1,6 @@
 import asyncio
 import os
+import time
 
 from dotenv import load_dotenv
 from ollama import AsyncClient
@@ -7,6 +8,9 @@ from ollama import AsyncClient
 load_dotenv()
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+
+_health_cache: dict[str, float | bool] = {"healthy": True, "checked_at": 0.0}
+HEALTH_CACHE_TTL = 5  # seconds
 
 
 async def list_models() -> list[dict]:
@@ -16,6 +20,21 @@ async def list_models() -> list[dict]:
         {"name": m.model, "size": m.size}
         for m in response.models
     ]
+
+
+async def check_health() -> bool:
+    """Check if Ollama is reachable. Caches result for HEALTH_CACHE_TTL seconds."""
+    now = time.monotonic()
+    if now - _health_cache["checked_at"] < HEALTH_CACHE_TTL:
+        return bool(_health_cache["healthy"])
+    try:
+        client = AsyncClient(host=OLLAMA_HOST)
+        await client.list()
+        _health_cache["healthy"] = True
+    except Exception:
+        _health_cache["healthy"] = False
+    _health_cache["checked_at"] = now
+    return bool(_health_cache["healthy"])
 
 
 async def stream_chat(model: str, messages: list[dict]):

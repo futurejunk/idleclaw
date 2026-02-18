@@ -85,7 +85,10 @@ After each invocation, show:
 - Schema workflow being used
 - Current progress (N/M complete)
 - What artifacts are now unlocked
-- Prompt: "Run `/opsx:continue` to create the next artifact"
+
+Then use the **AskUserQuestion tool** to ask what to do next. Offer options appropriate to the state:
+- If more artifacts remain: "Continue" (create next artifact), "Apply" (start implementing if tasks exist), "Stop here"
+- If all artifacts are complete: "Apply" (start implementing), "Archive" (archive the change), "Stop here"
 
 **Artifact Creation Guidelines**
 

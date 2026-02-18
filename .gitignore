@@ -16,3 +16,6 @@ dist/
 .idea/
 .vscode/
 *.swp
+
+# OpenSpec
+openspec/

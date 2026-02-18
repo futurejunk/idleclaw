@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import random
 
 from dotenv import load_dotenv
 
@@ -15,6 +16,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message
 logger = logging.getLogger(__name__)
 
 SERVER_URL = os.getenv("IDLECLAW_SERVER", "ws://localhost:8000/ws/node")
+
+BASE_DELAY = 1  # seconds
+MAX_DELAY = 60  # seconds
 
 
 async def main() -> None:
@@ -33,15 +37,24 @@ async def main() -> None:
 
     logger.info("Found %d model(s): %s", len(models), [m["name"] for m in models])
 
-    # Connect to server
-    conn = NodeConnection(server_url=SERVER_URL, models=models)
-    await conn.connect()
+    attempt = 0
+    while True:
+        conn = NodeConnection(server_url=SERVER_URL, models=models)
+        try:
+            await conn.connect()
+            attempt = 0  # Reset on successful registration
+            await asyncio.gather(
+                conn.listen(),
+                conn.heartbeat_loop(),
+            )
+        except Exception as e:
+            logger.warning("Connection lost: %s", e)
 
-    # Run listener and heartbeat concurrently
-    await asyncio.gather(
-        conn.listen(),
-        conn.heartbeat_loop(),
-    )
+        # Exponential backoff with jitter
+        delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY) + random.uniform(0, 1)
+        logger.info("Reconnecting in %.1fs (attempt %d)...", delay, attempt + 1)
+        await asyncio.sleep(delay)
+        attempt += 1
 
 
 if __name__ == "__main__":

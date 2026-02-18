@@ -12,6 +12,7 @@ from server.src.ws.node_handler import node_websocket
 
 registry = NodeRegistry()
 request_queues: dict[str, asyncio.Queue] = {}
+request_node_map: dict[str, str] = {}  # request_id -> node_id
 
 
 @asynccontextmanager
@@ -38,4 +39,4 @@ app.include_router(nodes.router)
 
 @app.websocket("/ws/node")
 async def ws_node(websocket: WebSocket):
-    await node_websocket(websocket, registry, request_queues)
+    await node_websocket(websocket, registry, request_queues, request_node_map)

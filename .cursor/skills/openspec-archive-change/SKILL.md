@@ -104,9 +104,6 @@ Archive a completed change in the experimental workflow.
 All artifacts complete. All tasks complete.
 ```
 
-After archiving, use the **AskUserQuestion tool** to ask what to do next:
-- "Ship" (commit the work), "New change" (start a new change), "Stop here"
-
 **Guardrails**
 - Always prompt for change selection if not provided
 - Use artifact graph (openspec status --json) for completion checking

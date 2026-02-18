@@ -14,7 +14,12 @@ logger = logging.getLogger(__name__)
 REGISTER_TIMEOUT = 10  # seconds
 
 
-async def node_websocket(websocket: WebSocket, registry: NodeRegistry, request_queues: dict[str, asyncio.Queue]) -> None:
+async def node_websocket(
+    websocket: WebSocket,
+    registry: NodeRegistry,
+    request_queues: dict[str, asyncio.Queue],
+    request_node_map: dict[str, str],
+) -> None:
     await websocket.accept()
     node: NodeInfo | None = None
 
@@ -75,10 +80,14 @@ async def node_websocket(websocket: WebSocket, registry: NodeRegistry, request_q
     finally:
         if node:
             registry.remove_node(node.node_id)
-            # Send error to any pending request queues for this node
-            for request_id, queue in list(request_queues.items()):
-                await queue.put({
-                    "type": "inference_error",
-                    "request_id": request_id,
-                    "error": f"Node {node.node_id} disconnected",
-                })
+            # Send error only to request queues belonging to this node
+            for request_id, owner_node_id in list(request_node_map.items()):
+                if owner_node_id == node.node_id:
+                    queue = request_queues.get(request_id)
+                    if queue:
+                        await queue.put({
+                            "type": "inference_error",
+                            "request_id": request_id,
+                            "error": f"Node {node.node_id} disconnected",
+                        })
+                    request_node_map.pop(request_id, None)

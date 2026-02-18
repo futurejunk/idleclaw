@@ -1,8 +1,8 @@
 ---
-name: "OPSX: Apply"
-description: Implement tasks from an OpenSpec change (Experimental)
+name: /opsx-apply
+id: opsx-apply
 category: Workflow
-tags: [workflow, artifacts, experimental]
+description: Implement tasks from an OpenSpec change (Experimental)
 ---
 
 Implement tasks from an OpenSpec change.
@@ -111,8 +111,7 @@ Working on task 4/7: <task description>
 - [x] Task 2
 ...
 
-Then use the **AskUserQuestion tool** to ask what to do next:
-- "Verify" (run verification), "Archive" (archive the change), "Ship" (commit the work), "Stop here"
+All tasks complete! You can archive this change with `/opsx:archive`.
 ```
 
 **Output On Pause (Issue Encountered)**

@@ -92,6 +92,9 @@ Commit and push all work from a completed or in-progress change.
 - openspec/...
 ```
 
+After showing the summary, use the **AskUserQuestion tool** to ask what to do next:
+- "New change" (start a new change), "Stop here"
+
 **Guardrails**
 - Never commit `.env`, credentials, or secrets
 - Never force push

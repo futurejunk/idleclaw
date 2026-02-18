@@ -59,7 +59,9 @@ After completing the steps, summarize:
 - Schema/workflow being used and its artifact sequence
 - Current status (0/N artifacts complete)
 - The template for the first artifact
-- Prompt: "Ready to create the first artifact? Run `/opsx:continue` or just describe what this change is about and I'll draft it."
+- Use the **AskUserQuestion tool** to ask what to do next. Offer options appropriate to the state:
+  - "Continue" — create the first artifact
+  - "I'll describe it" — let the user describe the change so you can draft the proposal
 
 **Guardrails**
 - Do NOT create any artifacts yet - just show the instructions

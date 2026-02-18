@@ -115,7 +115,8 @@ Working on task 4/7: <task description>
 - [x] Task 2
 ...
 
-All tasks complete! Ready to archive this change.
+Then use the **AskUserQuestion tool** to ask what to do next:
+- "Verify" (run verification), "Archive" (archive the change), "Ship" (commit the work), "Stop here"
 ```
 
 **Output On Pause (Issue Encountered)**

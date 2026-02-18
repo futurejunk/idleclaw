@@ -1,0 +1,182 @@
+"""IdleClaw Contribute — Share your idle Ollama inference with the community."""
+
+import asyncio
+import json
+import logging
+import os
+import random
+import sys
+import uuid
+
+from ollama import AsyncClient
+import websockets
+
+from config import get_server_url
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [idleclaw] %(message)s")
+logger = logging.getLogger("contribute")
+
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+HEARTBEAT_INTERVAL = 15
+BASE_DELAY = 1
+MAX_DELAY = 60
+
+
+async def check_ollama() -> list[dict]:
+    """Check Ollama is running and return available models."""
+    try:
+        client = AsyncClient(host=OLLAMA_HOST)
+        response = await client.list()
+        return [{"name": m.model, "size": m.size} for m in response.models]
+    except Exception as e:
+        print(f"Error: Cannot connect to Ollama at {OLLAMA_HOST}", file=sys.stderr)
+        print(f"  Detail: {e}", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("Make sure Ollama is running:", file=sys.stderr)
+        print("  1. Start Ollama: ollama serve", file=sys.stderr)
+        print("  2. Pull a model: ollama pull llama3.2:3b", file=sys.stderr)
+        sys.exit(1)
+
+
+async def stream_inference(model: str, messages: list[dict]):
+    """Stream chat tokens from local Ollama."""
+    client = AsyncClient(host=OLLAMA_HOST)
+    stream = await client.chat(model=model, messages=messages, stream=True)
+    async for chunk in stream:
+        token = chunk["message"]["content"]
+        if token:
+            yield token
+
+
+async def run_node(server_url: str, models: list[dict]) -> None:
+    """Connect to server, register, and handle inference requests."""
+    node_id = str(uuid.uuid4())
+    ws_url = server_url.replace("https://", "wss://").replace("http://", "ws://") + "/ws/node"
+
+    logger.info("Connecting to %s", ws_url)
+    ws = await websockets.connect(ws_url)
+
+    # Register
+    await ws.send(json.dumps({
+        "type": "register",
+        "node_id": node_id,
+        "models": models,
+        "max_concurrent": 2,
+    }))
+    raw = await ws.recv()
+    msg = json.loads(raw)
+    if msg.get("type") != "registered":
+        raise RuntimeError(f"Registration failed: {msg}")
+
+    model_names = [m["name"] for m in models]
+    logger.info("Registered as node %s", node_id)
+    logger.info("Sharing models: %s", ", ".join(model_names))
+    logger.info("Waiting for inference requests... (Ctrl+C to stop)")
+
+    active_requests = 0
+
+    async def heartbeat():
+        nonlocal active_requests
+        while True:
+            await asyncio.sleep(HEARTBEAT_INTERVAL)
+            await ws.send(json.dumps({
+                "type": "heartbeat",
+                "node_id": node_id,
+                "active_requests": active_requests,
+                "available": True,
+            }))
+
+    async def handle_inference(req: dict):
+        nonlocal active_requests
+        request_id = req["request_id"]
+        model = req["model"]
+        messages = req["messages"]
+        active_requests += 1
+        logger.info("Inference request %s for %s", request_id[:8], model)
+        try:
+            async for token in stream_inference(model, messages):
+                await ws.send(json.dumps({
+                    "type": "inference_chunk",
+                    "request_id": request_id,
+                    "token": token,
+                    "done": False,
+                }))
+            await ws.send(json.dumps({
+                "type": "inference_chunk",
+                "request_id": request_id,
+                "token": "",
+                "done": True,
+            }))
+            logger.info("Inference complete: %s", request_id[:8])
+        except Exception as e:
+            logger.error("Inference error for %s: %s", request_id[:8], e)
+            await ws.send(json.dumps({
+                "type": "inference_error",
+                "request_id": request_id,
+                "error": str(e),
+            }))
+        finally:
+            active_requests = max(0, active_requests - 1)
+
+    async def listen():
+        async for raw in ws:
+            msg = json.loads(raw)
+            if msg.get("type") == "inference_request":
+                asyncio.create_task(handle_inference(msg))
+
+    await asyncio.gather(listen(), heartbeat())
+
+
+async def main():
+    server_url = get_server_url()
+
+    print("IdleClaw Contribute")
+    print("===================")
+    print(f"Server: {server_url}")
+    print(f"Ollama: {OLLAMA_HOST}")
+    print()
+
+    # Check Ollama first
+    models = await check_ollama()
+    if not models:
+        print("Error: No models found. Pull a model first: ollama pull llama3.2:3b", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Found {len(models)} model(s):")
+    for m in models:
+        size_gb = m["size"] / (1024**3)
+        print(f"  - {m['name']} ({size_gb:.1f} GB)")
+    print()
+
+    # Connect with reconnection
+    attempt = 0
+    while True:
+        try:
+            await run_node(server_url, models)
+            attempt = 0
+        except websockets.exceptions.InvalidURI:
+            print(f"Error: Invalid server URL: {server_url}", file=sys.stderr)
+            print("Check your IDLECLAW_SERVER environment variable.", file=sys.stderr)
+            sys.exit(1)
+        except (ConnectionRefusedError, OSError) as e:
+            if attempt == 0:
+                print(f"Error: Cannot connect to server at {server_url}", file=sys.stderr)
+                print(f"  Detail: {e}", file=sys.stderr)
+                print("", file=sys.stderr)
+                print("Check that the IdleClaw server is running, or set IDLECLAW_SERVER.", file=sys.stderr)
+            else:
+                logger.warning("Connection lost: %s", e)
+        except Exception as e:
+            logger.warning("Connection lost: %s", e)
+
+        delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY) + random.uniform(0, 1)
+        logger.info("Reconnecting in %.1fs...", delay)
+        await asyncio.sleep(delay)
+        attempt += 1
+
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\nStopped.")

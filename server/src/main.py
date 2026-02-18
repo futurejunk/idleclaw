@@ -6,7 +6,7 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.src.config import settings
-from server.src.routers import chat, health
+from server.src.routers import chat, health, nodes
 from server.src.services.registry import NodeRegistry
 from server.src.ws.node_handler import node_websocket
 
@@ -33,6 +33,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(chat.router)
+app.include_router(nodes.router)
 
 
 @app.websocket("/ws/node")

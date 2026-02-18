@@ -14,7 +14,9 @@ def set_start_time(t: float) -> None:
 
 @router.get("/health")
 async def health():
+    from server.src.main import registry
     return {
         "status": "healthy",
         "uptime_seconds": round(time.time() - _start_time),
+        "node_count": registry.node_count,
     }

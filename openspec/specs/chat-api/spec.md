@@ -22,11 +22,15 @@ The endpoint SHALL route requests to a connected node agent that has the request
 - **THEN** the server returns status 422 with a Pydantic validation error
 
 ### Requirement: Health check endpoint
-The server SHALL expose a `GET /health` endpoint that returns a JSON object with `status` ("healthy") and `uptime_seconds` (number).
+The server SHALL expose a `GET /health` endpoint that returns a JSON object with `status` ("healthy"), `uptime_seconds` (number), and `node_count` (integer count of currently connected nodes in the registry).
 
-#### Scenario: Health check response
-- **WHEN** a client sends `GET /health`
-- **THEN** the server returns status 200 with `{"status": "healthy", "uptime_seconds": <number>}`
+#### Scenario: Health check with nodes
+- **WHEN** a client sends `GET /health` and 2 nodes are connected
+- **THEN** the server returns status 200 with `{"status": "healthy", "uptime_seconds": <number>, "node_count": 2}`
+
+#### Scenario: Health check with no nodes
+- **WHEN** a client sends `GET /health` and no nodes are connected
+- **THEN** the server returns status 200 with `{"status": "healthy", "uptime_seconds": <number>, "node_count": 0}`
 
 ### Requirement: CORS configuration
 The server SHALL allow cross-origin requests from `http://localhost:3000` so the frontend can call the API directly during development.
@@ -34,6 +38,17 @@ The server SHALL allow cross-origin requests from `http://localhost:3000` so the
 #### Scenario: Preflight CORS request from frontend
 - **WHEN** the frontend sends an `OPTIONS` request from `http://localhost:3000` to `/api/chat`
 - **THEN** the server responds with `Access-Control-Allow-Origin: http://localhost:3000` and allows `POST` method with `Content-Type` header
+
+### Requirement: Models list endpoint
+The server SHALL expose a `GET /api/models` endpoint that aggregates and deduplicates model names from all currently connected nodes in the registry and returns them as a JSON array.
+
+#### Scenario: Models returned from connected nodes
+- **WHEN** a client sends `GET /api/models` and connected nodes advertise models `["llama3.2:1b"]` and `["llama3.2:1b", "mistral:7b"]`
+- **THEN** the server returns `{"models": ["llama3.2:1b", "mistral:7b"]}` with no duplicates
+
+#### Scenario: Empty registry
+- **WHEN** no nodes are connected and a client sends `GET /api/models`
+- **THEN** the server returns `{"models": []}`
 
 ### Requirement: Pydantic request models
 The server SHALL validate incoming chat requests using Pydantic models. The `ChatRequest` model SHALL require `model` (string) and `messages` (list of `ChatMessage`). The `ChatMessage` model SHALL require `role` (string) and `content` (string).

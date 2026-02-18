@@ -1,0 +1,9 @@
+[project]
+name = "idleclaw-node-agent"
+version = "0.1.0"
+description = "IdleClaw node agent - connects local Ollama to the network"
+requires-python = ">=3.11"
+dependencies = [
+    "ollama>=0.4",
+    "python-dotenv>=1.0",
+]

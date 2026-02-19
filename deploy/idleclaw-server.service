@@ -5,8 +5,8 @@ After=network.target
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/opt/idleclaw/server
-Environment=CORS_ORIGINS=["https://idleclaw.com","http://localhost:3000"]
+WorkingDirectory=/opt/idleclaw
+Environment='CORS_ORIGINS=["https://idleclaw.com","http://localhost:3000"]'
 Environment=ENVIRONMENT=production
 Environment=LOG_LEVEL=INFO
 ExecStart=/opt/idleclaw/server/.venv/bin/uvicorn server.src.main:app --host 127.0.0.1 --port 8000

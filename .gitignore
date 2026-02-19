@@ -12,9 +12,11 @@ dist/
 # OS
 .DS_Store
 
-# IDE
+# IDE / tooling
 .idea/
 .vscode/
+.claude/
+.cursor/
 *.swp
 
 # Internal docs (plans, notes)

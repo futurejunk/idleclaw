@@ -15,7 +15,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-SERVER_URL = os.getenv("IDLECLAW_SERVER", "ws://localhost:8000/ws/node")
+SERVER_URL = os.getenv("IDLECLAW_SERVER", "wss://api.idleclaw.com/ws/node")
 
 BASE_DELAY = 1  # seconds
 MAX_DELAY = 60  # seconds

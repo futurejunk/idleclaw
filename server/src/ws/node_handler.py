@@ -40,6 +40,7 @@ async def node_websocket(
             max_concurrent=msg.get("max_concurrent", 2),
         )
         registry.add_node(node)
+        logger.info("Node registered", extra={"node_id": node.node_id, "models": [m.name for m in models]})
 
         await websocket.send_text(json.dumps({"type": "registered", "node_id": node.node_id}))
 
@@ -72,7 +73,7 @@ async def node_websocket(
         await websocket.close(code=1008, reason="registration timeout")
 
     except WebSocketDisconnect:
-        logger.info("Node disconnected: %s", node.node_id if node else "unregistered")
+        logger.info("Node disconnected", extra={"node_id": node.node_id if node else "unregistered"})
 
     except Exception:
         logger.exception("Error in node WebSocket handler")

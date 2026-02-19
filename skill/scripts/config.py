@@ -4,7 +4,7 @@ import os
 import re
 import sys
 
-DEFAULT_SERVER = "https://idleclaw.fly.dev"
+DEFAULT_SERVER = "https://api.idleclaw.com"
 MODEL_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9.:\-]*$")
 
 

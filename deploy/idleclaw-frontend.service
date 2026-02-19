@@ -1,0 +1,16 @@
+[Unit]
+Description=IdleClaw Frontend
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/idleclaw/frontend
+Environment=BACKEND_URL=http://localhost:8000
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

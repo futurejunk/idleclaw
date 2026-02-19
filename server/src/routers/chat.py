@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import time
 import uuid
 
 from fastapi import APIRouter, HTTPException
@@ -10,6 +12,8 @@ from sse_starlette.sse import EventSourceResponse
 from server.src.models.chat import ChatRequest
 from server.src.services.node_connection import create_request_queue, remove_request_queue
 from server.src.services.router import RequestRouter
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -26,6 +30,8 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=503, detail=f"No nodes available with model {request.model}")
 
     request_id = str(uuid.uuid4())
+    request_start = time.monotonic()
+    logger.info("Inference request started", extra={"request_id": request_id, "model": request.model, "node_id": node.node_id})
     queue = create_request_queue(request_queues, request_node_map, request_id, node.node_id)
 
     # Send inference request to node
@@ -81,6 +87,8 @@ async def chat(request: ChatRequest):
                         }
                         yield {"data": json.dumps(chunk)}
         finally:
+            duration = time.monotonic() - request_start
+            logger.info("Inference request completed", extra={"request_id": request_id, "model": request.model, "node_id": node.node_id, "duration_s": round(duration, 2)})
             node.active_requests = max(0, node.active_requests - 1)
             remove_request_queue(request_queues, request_node_map, request_id)
 

@@ -50,7 +50,7 @@ export function ChatContainer() {
 
   const [chatError, setChatError] = useState<string | null>(null);
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, setMessages, sendMessage, status } = useChat({
     transport,
     onError: (error) => {
       if (error.message?.includes("503")) {
@@ -66,16 +66,25 @@ export function ChatContainer() {
   const isOffline = healthState === "offline";
   const showBanner = isOffline && !bannerDismissed;
 
-  const handleSend = () => {
-    const text = input.trim();
-    if (!text || isLoading || isOffline) return;
+  const handleSend = (text?: string) => {
+    const msg = (text ?? input).trim();
+    if (!msg || isLoading || isOffline) return;
     setChatError(null);
     setInput("");
-    sendMessage({ text });
+    sendMessage({ text: msg });
+  };
+
+  const [focusTrigger, setFocusTrigger] = useState(0);
+
+  const handleNewChat = () => {
+    setMessages([]);
+    setInput("");
+    setChatError(null);
+    setFocusTrigger((n) => n + 1);
   };
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-dvh flex-col">
       <Header
         models={models}
         selectedModel={selectedModel}
@@ -83,9 +92,10 @@ export function ChatContainer() {
         modelError={modelError}
         healthState={healthState}
         nodeCount={nodeCount}
+        onNewChat={messages.length > 0 ? handleNewChat : undefined}
       />
       {showBanner && (
-        <div className="flex items-center justify-between bg-red-950 border-b border-red-900 px-6 py-2.5 text-sm text-red-200">
+        <div className="flex items-center justify-between bg-red-950 border-b border-red-900 px-4 sm:px-6 py-2.5 text-sm text-red-200">
           <span>Network is starting up — try again in a moment.</span>
           <button
             onClick={() => setBannerDismissed(true)}
@@ -96,11 +106,17 @@ export function ChatContainer() {
         </div>
       )}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <MessageList messages={messages} isLoading={isLoading} chatError={chatError} />
+        <MessageList
+          messages={messages}
+          isLoading={isLoading}
+          chatError={chatError}
+          onSuggestionClick={handleSend}
+        />
         <ChatInput
           input={input}
           isLoading={isLoading}
           disabled={isOffline}
+          focusTrigger={focusTrigger}
           onInputChange={setInput}
           onSend={handleSend}
         />

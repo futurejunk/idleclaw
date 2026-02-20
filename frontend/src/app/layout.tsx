@@ -13,8 +13,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "IdleClaw",
-  description: "Community-powered AI chat",
+  metadataBase: new URL("https://idleclaw.com"),
+  title: "IdleClaw — Free AI Chat Powered by Community GPUs",
+  description:
+    "Free AI chat powered by community GPU contributors. No accounts, no API keys — just open your browser and start chatting.",
+  openGraph: {
+    title: "IdleClaw — Free AI Chat Powered by Community GPUs",
+    description:
+      "Free AI chat powered by community GPU contributors. No accounts, no API keys — just open your browser and start chatting.",
+    url: "https://idleclaw.com",
+    type: "website",
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+  },
 };
 
 export default function RootLayout({

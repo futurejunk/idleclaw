@@ -17,17 +17,29 @@ class NodeRegistry:
 
     def __init__(self) -> None:
         self._nodes: dict[str, NodeInfo] = {}
+        self._ip_node_count: dict[str, int] = {}
         self._eviction_task: asyncio.Task | None = None
+        self.shutting_down: bool = False
 
     def add_node(self, node: NodeInfo) -> None:
         self._nodes[node.node_id] = node
+        if node.ip:
+            self._ip_node_count[node.ip] = self._ip_node_count.get(node.ip, 0) + 1
         logger.info("Node registered: %s (models: %s)", node.node_id, [m.name for m in node.models])
 
     def remove_node(self, node_id: str) -> NodeInfo | None:
         node = self._nodes.pop(node_id, None)
         if node:
+            if node.ip and node.ip in self._ip_node_count:
+                self._ip_node_count[node.ip] -= 1
+                if self._ip_node_count[node.ip] <= 0:
+                    del self._ip_node_count[node.ip]
             logger.info("Node removed: %s", node_id)
         return node
+
+    def check_ip_limit(self, ip: str, max_nodes_per_ip: int) -> bool:
+        """Return True if the IP is within the node limit."""
+        return self._ip_node_count.get(ip, 0) < max_nodes_per_ip
 
     def update_heartbeat(self, node_id: str, active_requests: int) -> None:
         node = self._nodes.get(node_id)

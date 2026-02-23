@@ -1,11 +1,15 @@
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+from server.src.config import settings
 
 
 class ChatMessage(BaseModel):
-    role: str
-    content: str
+    role: Literal["user", "assistant", "system"]
+    content: str = Field(min_length=1, max_length=settings.max_message_length)
 
 
 class ChatRequest(BaseModel):
-    model: str
-    messages: list[ChatMessage]
+    model: str = Field(min_length=1, max_length=settings.max_model_name_length)
+    messages: list[ChatMessage] = Field(min_length=1, max_length=settings.max_messages_per_request)

@@ -9,6 +9,7 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.src.config import settings
+from server.src.middleware.rate_limiter import RateLimitMiddleware, rate_limiter
 from server.src.routers import chat, health, nodes
 from server.src.services.registry import NodeRegistry
 from server.src.ws.node_handler import node_websocket
@@ -45,21 +46,69 @@ def setup_logging() -> None:
 
 setup_logging()
 
+logger = logging.getLogger(__name__)
+
 registry = NodeRegistry()
 request_queues: dict[str, asyncio.Queue] = {}
 request_node_map: dict[str, str] = {}  # request_id -> node_id
+
+PING_INTERVAL = 30  # seconds
+
+
+async def _ping_loop() -> None:
+    """Send WebSocket ping frames to all connected nodes every PING_INTERVAL seconds."""
+    while True:
+        await asyncio.sleep(PING_INTERVAL)
+        for node in registry.all_nodes():
+            try:
+                await node.websocket.send({"type": "websocket.ping", "bytes": b""})
+            except Exception:
+                logger.debug("Ping failed for node %s", node.node_id)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     health.set_start_time(time.time())
     registry.start_eviction()
+    rate_limiter.start_cleanup()
+    ping_task = asyncio.create_task(_ping_loop())
     yield
+
+    # Graceful shutdown: stop accepting new requests
+    registry.shutting_down = True
+    logger.info("Shutting down: draining %d in-flight requests...", len(request_queues))
+
+    # Drain in-flight requests up to the configured timeout
+    drain_timeout = settings.shutdown_drain_timeout
+    for _ in range(drain_timeout):
+        if not request_queues:
+            break
+        await asyncio.sleep(1)
+
+    if request_queues:
+        logger.warning("Drain timeout: %d requests still in flight", len(request_queues))
+
+    # Cancel background tasks
+    ping_task.cancel()
+    try:
+        await ping_task
+    except asyncio.CancelledError:
+        pass
+    await rate_limiter.stop_cleanup()
     await registry.stop_eviction()
+
+    # Close all node WebSocket connections
+    for node in registry.all_nodes():
+        try:
+            await node.websocket.close(code=1001, reason="server shutting down")
+        except Exception:
+            pass
+    logger.info("Shutdown complete")
 
 
 app = FastAPI(title="IdleClaw", lifespan=lifespan)
 
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

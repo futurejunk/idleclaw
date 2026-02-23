@@ -16,8 +16,11 @@ class RequestRouter:
     def select_node(registry: NodeRegistry, model: str) -> NodeInfo | None:
         """Select the best node for the given model using load-based scoring.
 
-        Returns None if no suitable node is available.
+        Returns None if no suitable node is available or server is shutting down.
         """
+        if registry.shutting_down:
+            return None
+
         candidates: list[tuple[float, NodeInfo]] = []
 
         for node in registry.all_nodes():

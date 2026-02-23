@@ -20,11 +20,13 @@ class NodeInfo:
         websocket: WebSocket,
         models: list[ModelInfo],
         max_concurrent: int = 2,
+        ip: str = "",
     ):
         self.node_id = node_id
         self.websocket = websocket
         self.models = models
         self.max_concurrent = max_concurrent
+        self.ip = ip
         self.last_heartbeat = time.time()
         self.active_requests = 0
 

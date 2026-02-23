@@ -6,6 +6,7 @@ import logging
 
 from fastapi import WebSocket, WebSocketDisconnect
 
+from server.src.config import settings
 from server.src.models.node import ModelInfo, NodeInfo
 from server.src.services.registry import NodeRegistry
 
@@ -22,6 +23,7 @@ async def node_websocket(
 ) -> None:
     await websocket.accept()
     node: NodeInfo | None = None
+    client_ip = websocket.client.host if websocket.client else "unknown"
 
     try:
         # Wait for register message
@@ -32,15 +34,56 @@ async def node_websocket(
             await websocket.close(code=1008, reason="expected register message")
             return
 
-        models = [ModelInfo(name=m["name"], size=m["size"]) for m in msg.get("models", [])]
+        # Validate node_id
+        node_id = msg.get("node_id", "")
+        if not node_id or len(node_id) > 64:
+            await websocket.close(code=1008, reason="invalid node_id")
+            return
+
+        # Validate model list
+        raw_models = msg.get("models", [])
+        if not raw_models:
+            await websocket.close(code=1008, reason="no models provided")
+            return
+        if len(raw_models) > settings.max_models_per_node:
+            await websocket.close(code=1008, reason="too many models")
+            return
+        for m in raw_models:
+            name = m.get("name", "")
+            if not name or len(name) > 64:
+                await websocket.close(code=1008, reason="invalid model name")
+                return
+
+        # Clamp max_concurrent to 1–10
+        max_concurrent = msg.get("max_concurrent", 2)
+        max_concurrent = max(1, min(10, max_concurrent))
+
+        # Handle re-registration: close old connection if node_id already exists
+        # Must happen before IP limit check so reconnecting nodes free their slot first
+        existing = registry.get_node(node_id)
+        if existing:
+            logger.info("Re-registration for node %s, closing old connection", node_id)
+            registry.remove_node(node_id)
+            try:
+                await existing.websocket.close(code=1000, reason="re-registered")
+            except Exception:
+                pass
+
+        # Enforce per-IP node limit
+        if not registry.check_ip_limit(client_ip, settings.max_nodes_per_ip):
+            await websocket.close(code=1008, reason="too many nodes from this IP")
+            return
+
+        models = [ModelInfo(name=m["name"], size=m["size"]) for m in raw_models]
         node = NodeInfo(
-            node_id=msg["node_id"],
+            node_id=node_id,
             websocket=websocket,
             models=models,
-            max_concurrent=msg.get("max_concurrent", 2),
+            max_concurrent=max_concurrent,
+            ip=client_ip,
         )
         registry.add_node(node)
-        logger.info("Node registered", extra={"node_id": node.node_id, "models": [m.name for m in models]})
+        logger.info("Node registered", extra={"node_id": node.node_id, "models": [m.name for m in models], "ip": client_ip})
 
         await websocket.send_text(json.dumps({"type": "registered", "node_id": node.node_id}))
 

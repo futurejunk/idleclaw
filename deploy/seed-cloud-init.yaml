@@ -1,0 +1,23 @@
+#cloud-config
+# IdleClaw seed node provisioning via cloud-init.
+# Use as EC2 user-data when launching a seed node instance.
+#
+# Prerequisites: GitHub deploy key must be pre-placed at /home/ubuntu/.ssh/
+# via EC2 instance metadata or a secrets manager.
+#
+# Customize the MODELS list in the final runcmd line below.
+
+package_update: true
+packages:
+  - python3
+  - python3-venv
+  - git
+
+runcmd:
+  # Clone repo first (seed-setup.sh lives inside it)
+  - mkdir -p /opt/idleclaw
+  - chown ubuntu:ubuntu /opt/idleclaw
+  - su - ubuntu -c 'git clone git@github.com:futurejunk/idleclaw.git /opt/idleclaw'
+
+  # Run the setup script (installs Ollama, pulls models, starts service)
+  - su - ubuntu -c 'bash /opt/idleclaw/deploy/seed-setup.sh llama3.2:3b'

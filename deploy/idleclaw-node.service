@@ -1,0 +1,16 @@
+[Unit]
+Description=IdleClaw Node Agent
+After=network.target ollama.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/idleclaw/node-agent
+Environment=IDLECLAW_SERVER=wss://api.idleclaw.com/ws/node
+Environment=OLLAMA_HOST=http://localhost:11434
+ExecStart=/opt/idleclaw/node-agent/.venv/bin/python -m src.main
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

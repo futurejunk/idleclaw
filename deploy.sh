@@ -6,7 +6,8 @@ set -euo pipefail
 
 HOST="${1:?Usage: ./deploy.sh <elastic-ip-or-hostname>}"
 
-ssh "ubuntu@${HOST}" 'cd /opt/idleclaw && git pull && \
-  cd server && .venv/bin/pip install -e . && \
+ssh "ubuntu@${HOST}" 'source ~/.local/bin/env && \
+  cd /opt/idleclaw && git pull && \
+  cd server && uv sync && \
   cd ../frontend && npm install && npm run build && \
   sudo systemctl restart idleclaw-server idleclaw-frontend'

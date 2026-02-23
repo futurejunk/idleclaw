@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useHealth } from "@/hooks/use-health";
@@ -43,10 +43,23 @@ export function ChatContainer() {
     prevHealthState.current = healthState;
   }, [healthState, fetchModels]);
 
-  const transport = new DefaultChatTransport({
-    api: "/api/chat",
-    body: selectedModel ? { model: selectedModel } : undefined,
-  });
+  // Use a ref so the transport body always reads the latest selected model.
+  // useChat captures the Chat instance (and its transport) once on mount,
+  // so a plain inline transport would be stale.
+  const selectedModelRef = useRef(selectedModel);
+  selectedModelRef.current = selectedModel;
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        body: () =>
+          selectedModelRef.current
+            ? { model: selectedModelRef.current }
+            : undefined,
+      }),
+    [],
+  );
 
   const [chatError, setChatError] = useState<string | null>(null);
 

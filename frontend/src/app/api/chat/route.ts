@@ -22,7 +22,7 @@ export async function POST(req: Request) {
       const res = await fetch(`${BACKEND_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: body.model ?? "llama3.2:1b", messages }),
+        body: JSON.stringify({ model: body.model, messages }),
       });
 
       if (!res.ok || !res.body) {

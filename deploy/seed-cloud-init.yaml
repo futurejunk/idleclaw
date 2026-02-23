@@ -14,7 +14,8 @@ packages:
   - git
 
 runcmd:
-  # Clone repo first (seed-setup.sh lives inside it)
+  # Accept GitHub SSH host key and clone repo (seed-setup.sh lives inside it)
+  - su - ubuntu -c 'ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null'
   - mkdir -p /opt/idleclaw
   - chown ubuntu:ubuntu /opt/idleclaw
   - su - ubuntu -c 'git clone git@github.com:futurejunk/idleclaw.git /opt/idleclaw'

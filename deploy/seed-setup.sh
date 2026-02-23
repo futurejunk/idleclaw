@@ -19,6 +19,12 @@ echo "=== IdleClaw Seed Node Setup ==="
 echo "Models: ${MODELS[*]}"
 echo ""
 
+# --- 0. System packages ---
+echo "[..] Updating package cache and installing prerequisites..."
+sudo apt update -y
+sudo apt install -y python3 python3-venv git
+echo "[OK] System packages ready"
+
 # --- 1. Install Ollama ---
 if command -v ollama &>/dev/null; then
   echo "[OK] Ollama already installed"
@@ -34,9 +40,22 @@ if systemctl is-active --quiet ollama 2>/dev/null; then
 else
   echo "[..] Starting Ollama service..."
   sudo systemctl enable --now ollama
-  sleep 3  # Give it a moment to start
   echo "[OK] Ollama service started"
 fi
+
+# Wait for Ollama API to be ready
+echo "[..] Waiting for Ollama API..."
+for i in $(seq 1 30); do
+  if curl -sf http://localhost:11434/api/tags &>/dev/null; then
+    echo "[OK] Ollama API ready"
+    break
+  fi
+  if [ "$i" -eq 30 ]; then
+    echo "FAIL: Ollama API not ready after 30s"
+    exit 1
+  fi
+  sleep 1
+done
 
 # --- 2. Pull models ---
 for model in "${MODELS[@]}"; do
@@ -46,6 +65,9 @@ for model in "${MODELS[@]}"; do
 done
 
 # --- 3. Clone repo ---
+# Accept GitHub's SSH host key if not already known
+ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+
 if [ -d "${INSTALL_DIR}/.git" ]; then
   echo "[OK] Repo already cloned at ${INSTALL_DIR}"
   cd "${INSTALL_DIR}" && git pull

@@ -12,6 +12,11 @@ dist/
 # OS
 .DS_Store
 
+# SSH keys
+*.pem
+*.key
+*.ppk
+
 # IDE / tooling
 .idea/
 .vscode/

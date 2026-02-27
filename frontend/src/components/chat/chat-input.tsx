@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
+import Link from "next/link";
 import { Send } from "lucide-react";
 
 interface ChatInputProps {
@@ -55,6 +56,12 @@ export function ChatInput({ input, isLoading, disabled, focusTrigger, onInputCha
           <Send size={18} />
         </button>
       </div>
+      <p className="mx-auto mt-1.5 max-w-3xl text-center text-[11px] text-banner-text/40">
+        Messages are processed by community GPU contributors{" "}
+        <Link href="/privacy" className="underline hover:text-banner-text/60">
+          · Privacy
+        </Link>
+      </p>
     </div>
   );
 }

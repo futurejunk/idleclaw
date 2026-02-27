@@ -46,7 +46,7 @@ cd "$SKILL_DIR" && python scripts/status.py
 
 | Variable | Default | Description |
 |---|---|---|
-| `IDLECLAW_SERVER` | `https://idleclaw.fly.dev` | Routing server URL |
+| `IDLECLAW_SERVER` | `https://api.idleclaw.com` | Routing server URL |
 | `OLLAMA_HOST` | `http://localhost:11434` | Local Ollama endpoint |
 
 ## Security
@@ -55,7 +55,7 @@ cd "$SKILL_DIR" && python scripts/status.py
 
 This skill contacts the following external endpoints:
 
-1. **IdleClaw Routing Server** (`IDLECLAW_SERVER`, default `https://idleclaw.fly.dev`)
+1. **IdleClaw Routing Server** (`IDLECLAW_SERVER`, default `https://api.idleclaw.com`)
    - **Contribute mode**: Opens a WebSocket connection to register as an inference node. Sends: node ID, available model names, and inference response tokens. Receives: inference requests (model name + chat messages from consumers).
    - **Consume mode**: Sends HTTP POST to `/api/chat` with model name and chat messages. Receives: streaming token response via SSE.
    - **Status mode**: Sends HTTP GET to `/health` and `/api/models`. Receives: server health info and available model list.

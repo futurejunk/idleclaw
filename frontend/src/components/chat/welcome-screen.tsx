@@ -12,14 +12,14 @@ interface WelcomeScreenProps {
 export function WelcomeScreen({ onSuggestionClick }: WelcomeScreenProps) {
   return (
     <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-      <h2 className="text-2xl font-semibold text-zinc-100">IdleClaw</h2>
-      <p className="mt-2 text-sm text-zinc-400">Free AI chat powered by community GPUs</p>
+      <h2 className="text-3xl font-semibold font-heading text-brand">IdleClaw</h2>
+      <p className="mt-2 text-sm text-muted">Free AI chat powered by community GPUs</p>
       <div className="mt-8 flex flex-wrap justify-center gap-2 max-w-lg">
         {SUGGESTIONS.map((s) => (
           <button
             key={s}
             onClick={() => onSuggestionClick(s)}
-            className="rounded-full border border-zinc-700 bg-zinc-800/50 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700/50 hover:text-zinc-100 transition-colors"
+            className="rounded-[14px] border border-border-ui bg-accent-soft px-4 py-2 text-sm text-brand-hover hover:border-border-ui/80 hover:bg-brand/10 transition-colors"
           >
             {s}
           </button>

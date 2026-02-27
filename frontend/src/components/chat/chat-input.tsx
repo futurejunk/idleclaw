@@ -29,7 +29,7 @@ export function ChatInput({ input, isLoading, disabled, focusTrigger, onInputCha
   }, [focusTrigger]);
 
   return (
-    <div className="border-t border-zinc-800 bg-zinc-950 p-3 sm:p-4">
+    <div className="border-t border-banner/20 bg-banner p-3 sm:p-4">
       <div className="mx-auto flex max-w-3xl items-end gap-2 sm:gap-3">
         <textarea
           ref={textareaRef}
@@ -44,13 +44,13 @@ export function ChatInput({ input, isLoading, disabled, focusTrigger, onInputCha
           placeholder="Send a message..."
           disabled={isLoading || disabled}
           rows={1}
-          className="flex-1 resize-none rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:outline-none disabled:opacity-50 [field-sizing:content] max-h-40"
+          className="flex-1 resize-none rounded-[14px] border border-white/20 bg-white/10 px-4 py-3 text-sm text-banner-text placeholder-banner-text/50 focus:border-brand focus:outline-none disabled:opacity-50 [field-sizing:content] max-h-40"
         />
         <button
           type="button"
           onClick={() => onSend()}
           disabled={isLoading || disabled || !input.trim()}
-          className="rounded-xl bg-blue-600 p-3 text-white hover:bg-blue-500 disabled:opacity-50 disabled:hover:bg-blue-600"
+          className="rounded-[14px] bg-gradient-to-br from-brand to-brand-hover p-3 text-white hover:opacity-90 disabled:opacity-50"
         >
           <Send size={18} />
         </button>

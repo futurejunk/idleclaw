@@ -15,18 +15,18 @@ interface HeaderProps {
 
 export function Header({ models, selectedModel, onModelChange, modelError, healthState, nodeCount, onNewChat }: HeaderProps) {
   return (
-    <header className="border-b border-zinc-800 bg-zinc-950 px-4 py-3 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-2">
+    <header className="border-b border-banner/20 bg-banner px-4 py-3 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2">
         {onNewChat && (
           <button
             onClick={onNewChat}
-            className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+            className="rounded-lg p-1.5 text-banner-text/70 hover:bg-white/10 hover:text-banner-text"
             title="New chat"
           >
             <SquarePen size={18} />
           </button>
         )}
-        <h1 className="text-lg font-semibold text-zinc-100">IdleClaw</h1>
+        <h1 className="text-lg font-semibold font-heading text-brand">IdleClaw</h1>
       </div>
       <div className="flex items-center gap-3 sm:gap-4">
         <ModelSelector

@@ -24,16 +24,16 @@ export function MessageBubble({ message }: { message: UIMessage }) {
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[90%] sm:max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+        className={`max-w-[90%] sm:max-w-[80%] rounded-[20px] px-4 py-2.5 text-sm leading-relaxed ${
           isUser
-            ? "bg-blue-600 text-white"
-            : "bg-zinc-800 text-zinc-100"
+            ? "bg-gradient-to-br from-brand to-brand-hover text-white"
+            : "bg-surface text-foreground shadow-sm"
         }`}
       >
         {isUser ? (
           <p className="whitespace-pre-wrap">{text}</p>
         ) : (
-          <div className="prose prose-invert prose-sm max-w-none">
+          <div className="prose prose-sm max-w-none">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -51,7 +51,7 @@ export function MessageBubble({ message }: { message: UIMessage }) {
                     return <code className={className}>{children}</code>;
                   }
                   return (
-                    <code className="rounded bg-zinc-900 px-1 py-0.5 text-xs font-mono">
+                    <code className="rounded-[8px] bg-accent-soft px-1.5 py-0.5 text-xs font-mono">
                       {children}
                     </code>
                   );
@@ -62,7 +62,7 @@ export function MessageBubble({ message }: { message: UIMessage }) {
                       href={href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-400 underline hover:text-blue-300"
+                      className="text-brand underline hover:text-brand-hover"
                       {...props}
                     >
                       {children}

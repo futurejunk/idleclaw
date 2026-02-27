@@ -1,26 +1,31 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  --color-background: #f8f2ed;
+  --color-foreground: #2a1f19;
+  --color-brand: #e65c46;
+  --color-brand-hover: #bf3f30;
+  --color-pill: #ffffff;
+  --color-banner: #2a1f19;
+  --color-banner-text: #f8f2ed;
+  --color-border: #2a1f1924;
+  --color-border-ui: #bf3f3047;
+  --color-muted: #6b5549;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f7efe9;
+  --color-accent-soft: #ff6b4a1f;
+  --shadow: 0 22px 52px #2c1c141c;
+  --radius-pill: 14px;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 9px;
+  --font-heading: var(--font-bricolage), var(--font-manrope), sans-serif;
+  --font-body: var(--font-manrope), var(--font-bricolage), sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-body);
 }

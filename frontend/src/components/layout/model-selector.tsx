@@ -10,7 +10,7 @@ export function ModelSelector({ models, selected, onChange, error }: ModelSelect
     return (
       <select
         disabled
-        className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-500 disabled:opacity-60"
+        className="rounded-[9px] border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-banner-text/50 disabled:opacity-60"
       >
         <option>Models unavailable</option>
       </select>
@@ -21,7 +21,7 @@ export function ModelSelector({ models, selected, onChange, error }: ModelSelect
     return (
       <select
         disabled
-        className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-500 disabled:opacity-60"
+        className="rounded-[9px] border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-banner-text/50 disabled:opacity-60"
       >
         <option>No models available</option>
       </select>
@@ -32,7 +32,7 @@ export function ModelSelector({ models, selected, onChange, error }: ModelSelect
     <select
       value={selected}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 focus:border-blue-500 focus:outline-none"
+      className="rounded-[9px] border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-banner-text focus:border-brand focus:outline-none"
     >
       {models.map((m) => (
         <option key={m} value={m}>

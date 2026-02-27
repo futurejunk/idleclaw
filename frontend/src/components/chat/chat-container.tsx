@@ -108,11 +108,11 @@ export function ChatContainer() {
         onNewChat={messages.length > 0 ? handleNewChat : undefined}
       />
       {showBanner && (
-        <div className="flex items-center justify-between bg-red-950 border-b border-red-900 px-4 sm:px-6 py-2.5 text-sm text-red-200">
+        <div className="flex items-center justify-between bg-red-50 border-b border-red-200 px-4 sm:px-6 py-2.5 text-sm text-red-700">
           <span>Network is starting up — try again in a moment.</span>
           <button
             onClick={() => setBannerDismissed(true)}
-            className="ml-4 text-red-400 hover:text-red-300 text-xs"
+            className="ml-4 text-red-500 hover:text-red-700 text-xs"
           >
             Dismiss
           </button>

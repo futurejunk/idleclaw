@@ -52,7 +52,7 @@ export function ChatInput({ input, isLoading, disabled, focusTrigger, onInputCha
           <button
             type="button"
             onClick={onStop}
-            className="rounded-[14px] bg-red-500 p-3 text-white hover:bg-red-600"
+            className="rounded-[14px] bg-gradient-to-br from-brand to-brand-hover p-3 text-white hover:opacity-90"
           >
             <Square size={18} fill="currentColor" />
           </button>

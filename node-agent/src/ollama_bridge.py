@@ -1,9 +1,12 @@
 import asyncio
+import logging
 import os
 import time
 
 from dotenv import load_dotenv
 from ollama import AsyncClient
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -20,6 +23,23 @@ async def list_models() -> list[dict]:
         {"name": m.model, "size": m.size}
         for m in response.models
     ]
+
+
+async def warmup_models() -> None:
+    """Pre-load all models into memory with keep_alive=-1 to prevent unloading."""
+    client = AsyncClient(host=OLLAMA_HOST)
+    models = await list_models()
+    for m in models:
+        name = m["name"]
+        try:
+            await client.chat(
+                model=name,
+                messages=[{"role": "user", "content": "hi"}],
+                keep_alive=-1,
+            )
+            logger.info("Warmed up model: %s", name)
+        except Exception as e:
+            logger.warning("Failed to warm up %s: %s", name, e)
 
 
 async def check_health() -> bool:
@@ -42,7 +62,7 @@ async def stream_chat(model: str, messages: list[dict], *, think: bool = False):
     client = AsyncClient(host=OLLAMA_HOST)
     if think:
         try:
-            stream = await client.chat(model=model, messages=messages, stream=True, think=True)
+            stream = await client.chat(model=model, messages=messages, stream=True, think=True, keep_alive=-1)
             async for chunk in stream:
                 thinking = chunk["message"].get("thinking", "")
                 content = chunk["message"].get("content", "")
@@ -53,7 +73,7 @@ async def stream_chat(model: str, messages: list[dict], *, think: bool = False):
             return
         except Exception:
             pass  # Model doesn't support thinking — fall back below
-    stream = await client.chat(model=model, messages=messages, stream=True)
+    stream = await client.chat(model=model, messages=messages, stream=True, keep_alive=-1)
     async for chunk in stream:
         content = chunk["message"].get("content", "")
         if content:

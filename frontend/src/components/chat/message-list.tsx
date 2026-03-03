@@ -20,10 +20,13 @@ export function MessageList({ messages, isLoading, chatError, onSuggestionClick 
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  // Show typing indicator when loading and the last message is from the user
-  // (i.e. no assistant response has started yet)
+  // Show typing indicator when loading and no visible assistant content yet.
+  // The AI SDK creates an empty assistant message on stream start, so we also
+  // check if the assistant message has any text/reasoning content.
   const lastMessage = messages[messages.length - 1];
-  const showTyping = isLoading && (!lastMessage || lastMessage.role === "user");
+  const lastAssistantHasContent = lastMessage?.role === "assistant" &&
+    lastMessage.parts.some((p) => (p.type === "text" || p.type === "reasoning") && "text" in p && (p as { text: string }).text.length > 0);
+  const showTyping = isLoading && !lastAssistantHasContent;
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">

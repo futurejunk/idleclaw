@@ -93,13 +93,19 @@ async def chat(request: ChatRequest):
                         raw_chunk = msg.get("chunk", {})
 
                         if raw_chunk.get("done"):
-                            # Capture the done message for native tool call detection
                             done_message = raw_chunk.get("message", {})
                             break
 
                         message = raw_chunk.get("message", {})
                         content = message.get("content", "")
                         thinking = message.get("thinking", "")
+
+                        # Capture tool_calls from streaming chunks (Ollama sends them before the done chunk)
+                        chunk_tool_calls = message.get("tool_calls")
+                        if chunk_tool_calls:
+                            if done_message is None:
+                                done_message = {}
+                            done_message["tool_calls"] = chunk_tool_calls
 
                         if thinking:
                             delta = {"content": thinking, "reasoning": True}

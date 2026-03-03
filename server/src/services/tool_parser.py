@@ -5,6 +5,8 @@ import re
 
 # Regex to match <tool_call>...</tool_call> blocks (including across lines)
 _TOOL_CALL_PATTERN = re.compile(r"<tool_call>\s*(.*?)\s*</tool_call>", re.DOTALL)
+# Fallback: match <tool_call> with JSON but no closing tag (common with small models)
+_TOOL_CALL_UNCLOSED = re.compile(r"<tool_call>\s*(\{.*)", re.DOTALL)
 
 
 def parse_tool_calls(
@@ -41,7 +43,10 @@ def _parse_native_tool_calls(tool_calls: list) -> list[dict]:
 
 
 def _parse_fallback_tool_calls(content: str) -> list[dict]:
-    """Parse <tool_call>...</tool_call> tags from content text."""
+    """Parse <tool_call>...</tool_call> tags from content text.
+
+    Also handles unclosed tags (small models often omit </tool_call>).
+    """
     results = []
     for match in _TOOL_CALL_PATTERN.finditer(content):
         raw = match.group(1)
@@ -53,9 +58,23 @@ def _parse_fallback_tool_calls(content: str) -> list[dict]:
                 results.append({"name": name, "arguments": arguments})
         except (json.JSONDecodeError, TypeError):
             continue
+    # Fallback: try unclosed tags if no closed matches found
+    if not results:
+        for match in _TOOL_CALL_UNCLOSED.finditer(content):
+            raw = match.group(1).rstrip()
+            try:
+                parsed = json.loads(raw)
+                name = parsed.get("name", "")
+                arguments = parsed.get("arguments", {})
+                if name:
+                    results.append({"name": name, "arguments": arguments})
+            except (json.JSONDecodeError, TypeError):
+                continue
     return results
 
 
 def strip_tool_tags(content: str) -> str:
     """Remove <tool_call>...</tool_call> blocks from content for display."""
-    return _TOOL_CALL_PATTERN.sub("", content).strip()
+    result = _TOOL_CALL_PATTERN.sub("", content)
+    result = _TOOL_CALL_UNCLOSED.sub("", result)
+    return result.strip()

@@ -85,11 +85,19 @@ async def warmup_models(models: list[dict]) -> None:
 
 
 async def stream_inference(params: dict):
-    """Stream raw Ollama chunks. Passes params directly to client.chat()."""
+    """Stream raw Ollama chunks as plain dicts. Passes params directly to client.chat()."""
     client = AsyncClient(host=OLLAMA_HOST)
     stream = await client.chat(**params)
     async for chunk in stream:
-        yield chunk
+        message = chunk.get("message", {})
+        yield {
+            "message": {
+                "role": getattr(message, "role", "assistant"),
+                "content": message.get("content", "") or "",
+                "thinking": message.get("thinking", "") or "",
+            },
+            "done": chunk.get("done", False),
+        }
 
 
 async def run_node(server_url: str, models: list[dict], ollama_version: str) -> None:

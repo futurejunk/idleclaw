@@ -74,13 +74,18 @@ async def node_websocket(
             await websocket.close(code=1008, reason="too many nodes from this IP")
             return
 
-        models = [ModelInfo(name=m["name"], size=m["size"]) for m in raw_models]
+        ollama_version = msg.get("ollama_version", "")
+        models = [
+            ModelInfo(name=m["name"], size=m["size"], capabilities=m.get("capabilities", {}))
+            for m in raw_models
+        ]
         node = NodeInfo(
             node_id=node_id,
             websocket=websocket,
             models=models,
             max_concurrent=max_concurrent,
             ip=client_ip,
+            ollama_version=ollama_version,
         )
         registry.add_node(node)
         logger.info("Node registered", extra={"node_id": node.node_id, "models": [m.name for m in models], "ip": client_ip})

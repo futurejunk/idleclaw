@@ -37,13 +37,17 @@ async def main() -> None:
 
     logger.info("Found %d model(s): %s", len(models), [m["name"] for m in models])
 
+    # Detect Ollama version
+    ollama_version = await ollama_bridge.get_ollama_version()
+    logger.info("Ollama version: %s", ollama_version)
+
     # Pre-load models into GPU memory and keep them resident
     logger.info("Warming up models...")
     await ollama_bridge.warmup_models()
 
     attempt = 0
     while True:
-        conn = NodeConnection(server_url=SERVER_URL, models=models)
+        conn = NodeConnection(server_url=SERVER_URL, models=models, ollama_version=ollama_version)
         try:
             await conn.connect()
             attempt = 0  # Reset on successful registration

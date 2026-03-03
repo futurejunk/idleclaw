@@ -11,6 +11,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from server.src.models.chat import ChatRequest
 from server.src.services.node_connection import create_request_queue, remove_request_queue
+from server.src.services.ollama_params import build_ollama_params
 from server.src.services.router import RequestRouter
 
 logger = logging.getLogger(__name__)
@@ -34,13 +35,12 @@ async def chat(request: ChatRequest):
     logger.info("Inference request started", extra={"request_id": request_id, "model": request.model, "node_id": node.node_id})
     queue = create_request_queue(request_queues, request_node_map, request_id, node.node_id)
 
-    # Send inference request to node
+    # Build ollama_params and send inference request to node
+    ollama_params = build_ollama_params(request, node)
     await node.websocket.send_text(json.dumps({
         "type": "inference_request",
         "request_id": request_id,
-        "model": request.model,
-        "messages": [{"role": m.role, "content": m.content} for m in request.messages],
-        "think": request.think,
+        "ollama_params": ollama_params,
     }))
     node.active_requests += 1
 
@@ -74,15 +74,26 @@ async def chat(request: ChatRequest):
                     return
 
                 if msg["type"] == "inference_chunk":
-                    if msg.get("done"):
+                    raw_chunk = msg.get("chunk", {})
+                    if raw_chunk.get("done"):
                         yield {"data": "[DONE]"}
                         return
 
-                    token = msg.get("token", "")
-                    if token:
-                        delta = {"content": token}
-                        if msg.get("thinking"):
-                            delta["reasoning"] = True
+                    message = raw_chunk.get("message", {})
+                    content = message.get("content", "")
+                    thinking = message.get("thinking", "")
+
+                    if thinking:
+                        delta = {"content": thinking, "reasoning": True}
+                        chunk = {
+                            "id": chat_id,
+                            "object": "chat.completion.chunk",
+                            "model": request.model,
+                            "choices": [{"delta": delta, "index": 0}],
+                        }
+                        yield {"data": json.dumps(chunk)}
+                    if content:
+                        delta = {"content": content}
                         chunk = {
                             "id": chat_id,
                             "object": "chat.completion.chunk",

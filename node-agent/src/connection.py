@@ -8,7 +8,6 @@ import uuid
 import websockets
 
 from src import ollama_bridge
-from src.rate_limiter import TokenBucket
 
 logger = logging.getLogger(__name__)
 
@@ -16,13 +15,13 @@ HEARTBEAT_INTERVAL = 15  # seconds
 
 
 class NodeConnection:
-    def __init__(self, server_url: str, models: list[dict]):
+    def __init__(self, server_url: str, models: list[dict], *, ollama_version: str = ""):
         self.server_url = server_url
         self.models = models
         self.node_id = str(uuid.uuid4())
         self.active_requests = 0
+        self.ollama_version = ollama_version
         self._ws: websockets.ClientConnection | None = None
-        self._rate_limiter = TokenBucket()
         self._inference_tasks: dict[str, asyncio.Task] = {}
 
     async def connect(self) -> None:
@@ -35,6 +34,7 @@ class NodeConnection:
             "node_id": self.node_id,
             "models": self.models,
             "max_concurrent": 2,
+            "ollama_version": self.ollama_version,
         }))
 
         # Wait for registered ack
@@ -83,50 +83,30 @@ class NodeConnection:
 
     async def _handle_inference(self, msg: dict) -> None:
         request_id = msg["request_id"]
-        model = msg["model"]
-        messages = msg["messages"]
-        think = msg.get("think", False)
-
-        if not self._rate_limiter.consume():
-            logger.warning("Rate limited request %s", request_id)
-            await self._ws.send(json.dumps({
-                "type": "inference_error",
-                "request_id": request_id,
-                "error": "rate limited",
-            }))
-            return
+        ollama_params = msg["ollama_params"]
 
         if not await ollama_bridge.check_health():
             logger.warning("Ollama unavailable for request %s", request_id)
             await self._ws.send(json.dumps({
                 "type": "inference_error",
                 "request_id": request_id,
-                "error": "Ollama unavailable",
+                "error": "ollama_unavailable",
             }))
             return
 
         self.active_requests += 1
-        logger.info("Inference request %s for model %s", request_id, model)
+        logger.info("Inference request %s for model %s", request_id, ollama_params.get("model", "?"))
 
         try:
-            async for token_type, token in ollama_bridge.stream_chat(model, messages, think=think):
-                chunk = {
+            async for chunk in ollama_bridge.stream_chat(ollama_params):
+                await self._ws.send(json.dumps({
                     "type": "inference_chunk",
                     "request_id": request_id,
-                    "token": token,
-                    "done": False,
-                }
-                if token_type == "thinking":
-                    chunk["thinking"] = True
-                await self._ws.send(json.dumps(chunk))
-
-            # Send done
-            await self._ws.send(json.dumps({
-                "type": "inference_chunk",
-                "request_id": request_id,
-                "token": "",
-                "done": True,
-            }))
+                    "chunk": {
+                        "message": chunk.get("message", {}),
+                        "done": chunk.get("done", False),
+                    },
+                }))
             logger.info("Inference complete: %s", request_id)
 
         except asyncio.CancelledError:
@@ -138,7 +118,7 @@ class NodeConnection:
                 await self._ws.send(json.dumps({
                     "type": "inference_error",
                     "request_id": request_id,
-                    "error": str(e),
+                    "error": "ollama_error",
                 }))
             except Exception:
                 pass

@@ -16,11 +16,39 @@ _health_cache: dict[str, float | bool] = {"healthy": True, "checked_at": 0.0}
 HEALTH_CACHE_TTL = 5  # seconds
 
 
+THINKING_MODEL_PATTERNS = ("qwen3",)
+
+
+def detect_capabilities(model_name: str) -> dict:
+    """Detect model capabilities from name heuristics."""
+    name_lower = model_name.lower()
+    return {
+        "thinking": any(p in name_lower for p in THINKING_MODEL_PATTERNS),
+    }
+
+
+async def get_ollama_version() -> str:
+    """Get the Ollama server version string."""
+    try:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{OLLAMA_HOST}/api/version")
+            if resp.status_code == 200:
+                return resp.json().get("version", "unknown")
+    except Exception:
+        pass
+    return "unknown"
+
+
 async def list_models() -> list[dict]:
     client = AsyncClient(host=OLLAMA_HOST)
     response = await client.list()
     return [
-        {"name": m.model, "size": m.size}
+        {
+            "name": m.model,
+            "size": m.size,
+            "capabilities": detect_capabilities(m.model),
+        }
         for m in response.models
     ]
 
@@ -57,27 +85,12 @@ async def check_health() -> bool:
     return bool(_health_cache["healthy"])
 
 
-async def stream_chat(model: str, messages: list[dict], *, think: bool = False):
-    """Yield (token_type, token_text) tuples. token_type is "thinking" or "content"."""
+async def stream_chat(params: dict):
+    """Stream raw Ollama chunks. Passes params directly to client.chat()."""
     client = AsyncClient(host=OLLAMA_HOST)
-    if think:
-        try:
-            stream = await client.chat(model=model, messages=messages, stream=True, think=True, keep_alive=-1)
-            async for chunk in stream:
-                thinking = chunk["message"].get("thinking", "")
-                content = chunk["message"].get("content", "")
-                if thinking:
-                    yield ("thinking", thinking)
-                if content:
-                    yield ("content", content)
-            return
-        except Exception:
-            pass  # Model doesn't support thinking — fall back below
-    stream = await client.chat(model=model, messages=messages, stream=True, think=False, keep_alive=-1)
+    stream = await client.chat(**params)
     async for chunk in stream:
-        content = chunk["message"].get("content", "")
-        if content:
-            yield ("content", content)
+        yield chunk
 
 
 async def main():
@@ -104,11 +117,19 @@ async def main():
     print(f"Prompt: {test_message}\n")
     print("Response: ", end="", flush=True)
 
-    async for token_type, token in stream_chat(model, [{"role": "user", "content": test_message}]):
-        if token_type == "thinking":
-            print(f"[thinking] {token}", end="", flush=True)
-        else:
-            print(token, end="", flush=True)
+    params = {
+        "model": model,
+        "messages": [{"role": "user", "content": test_message}],
+        "stream": True,
+        "keep_alive": -1,
+    }
+    async for chunk in stream_chat(params):
+        thinking = chunk["message"].get("thinking", "")
+        content = chunk["message"].get("content", "")
+        if thinking:
+            print(f"[thinking] {thinking}", end="", flush=True)
+        if content:
+            print(content, end="", flush=True)
 
     print("\n\nDone.")
 

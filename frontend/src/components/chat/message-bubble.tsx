@@ -65,6 +65,9 @@ export function MessageBubble({ message, isStreaming }: { message: UIMessage; is
   // Thinking is "active" when we have reasoning but no content yet and still streaming
   const isThinking = hasReasoning && !hasContent && !!isStreaming;
 
+  // Don't render empty assistant bubble (SDK creates it before tokens arrive)
+  if (!isUser && !hasReasoning && !hasContent) return null;
+
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div

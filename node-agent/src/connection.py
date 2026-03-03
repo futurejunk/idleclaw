@@ -23,6 +23,7 @@ class NodeConnection:
         self.active_requests = 0
         self._ws: websockets.ClientConnection | None = None
         self._rate_limiter = TokenBucket()
+        self._inference_tasks: dict[str, asyncio.Task] = {}
 
     async def connect(self) -> None:
         self._ws = await websockets.connect(self.server_url)
@@ -67,7 +68,16 @@ class NodeConnection:
             async for raw in self._ws:
                 msg = json.loads(raw)
                 if msg.get("type") == "inference_request":
-                    asyncio.create_task(self._handle_inference(msg))
+                    request_id = msg["request_id"]
+                    task = asyncio.create_task(self._handle_inference(msg))
+                    self._inference_tasks[request_id] = task
+                    task.add_done_callback(lambda _, rid=request_id: self._inference_tasks.pop(rid, None))
+                elif msg.get("type") == "cancel_request":
+                    request_id = msg.get("request_id")
+                    task = self._inference_tasks.get(request_id)
+                    if task and not task.done():
+                        task.cancel()
+                        logger.info("Cancelled inference: %s", request_id)
         except websockets.exceptions.ConnectionClosed:
             logger.info("Listen loop: connection closed")
 
@@ -119,13 +129,19 @@ class NodeConnection:
             }))
             logger.info("Inference complete: %s", request_id)
 
+        except asyncio.CancelledError:
+            logger.info("Inference cancelled: %s", request_id)
+
         except Exception as e:
             logger.exception("Inference error for %s", request_id)
-            await self._ws.send(json.dumps({
-                "type": "inference_error",
-                "request_id": request_id,
-                "error": str(e),
-            }))
+            try:
+                await self._ws.send(json.dumps({
+                    "type": "inference_error",
+                    "request_id": request_id,
+                    "error": str(e),
+                }))
+            except Exception:
+                pass
 
         finally:
             self.active_requests = max(0, self.active_requests - 1)

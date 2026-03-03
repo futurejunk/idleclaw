@@ -95,5 +95,13 @@ async def chat(request: ChatRequest):
             logger.info("Inference request completed", extra={"request_id": request_id, "model": request.model, "node_id": node.node_id, "duration_s": round(duration, 2)})
             node.active_requests = max(0, node.active_requests - 1)
             remove_request_queue(request_queues, request_node_map, request_id)
+            # Tell node to cancel if still running (client may have disconnected)
+            try:
+                await node.websocket.send_text(json.dumps({
+                    "type": "cancel_request",
+                    "request_id": request_id,
+                }))
+            except Exception:
+                pass
 
     return EventSourceResponse(event_generator())

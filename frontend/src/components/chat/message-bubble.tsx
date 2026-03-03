@@ -14,12 +14,56 @@ function extractCodeFromPre(children: ReactNode): { code: string; language?: str
   return { code, language: match?.[1] };
 }
 
-export function MessageBubble({ message }: { message: UIMessage }) {
+const markdownComponents = {
+  pre({ children }: { children?: ReactNode }) {
+    const extracted = extractCodeFromPre(children);
+    if (extracted) {
+      return <CodeBlock code={extracted.code} language={extracted.language} />;
+    }
+    return <pre>{children}</pre>;
+  },
+  code({ className, children }: { className?: string; children?: ReactNode }) {
+    if (className?.startsWith("language-")) {
+      return <code className={className}>{children}</code>;
+    }
+    return (
+      <code className="rounded-[8px] bg-accent-soft px-1.5 py-0.5 text-xs font-mono">
+        {children}
+      </code>
+    );
+  },
+  a({ children, href, ...props }: { children?: ReactNode; href?: string }) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-brand underline hover:text-brand-hover"
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  },
+};
+
+export function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreaming?: boolean }) {
   const isUser = message.role === "user";
+
+  const reasoningText = message.parts
+    .filter((p): p is { type: "reasoning"; text: string } => p.type === "reasoning")
+    .map((p) => p.text)
+    .join("");
+
   const text = message.parts
     .filter((p): p is { type: "text"; text: string } => p.type === "text")
     .map((p) => p.text)
     .join("");
+
+  const hasReasoning = reasoningText.length > 0;
+  const hasContent = text.length > 0;
+  // Thinking is "active" when we have reasoning but no content yet and still streaming
+  const isThinking = hasReasoning && !hasContent && !!isStreaming;
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
@@ -33,47 +77,26 @@ export function MessageBubble({ message }: { message: UIMessage }) {
         {isUser ? (
           <p className="whitespace-pre-wrap">{text}</p>
         ) : (
-          <div className="prose prose-sm max-w-none">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                pre({ children }) {
-                  const extracted = extractCodeFromPre(children);
-                  if (extracted) {
-                    return <CodeBlock code={extracted.code} language={extracted.language} />;
-                  }
-                  return <pre>{children}</pre>;
-                },
-                code({ className, children }) {
-                  // Only handles inline code — fenced blocks are handled by pre() above
-                  if (className?.startsWith("language-")) {
-                    // Inside a <pre> — pre() will handle this
-                    return <code className={className}>{children}</code>;
-                  }
-                  return (
-                    <code className="rounded-[8px] bg-accent-soft px-1.5 py-0.5 text-xs font-mono">
-                      {children}
-                    </code>
-                  );
-                },
-                a({ children, href, ...props }) {
-                  return (
-                    <a
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-brand underline hover:text-brand-hover"
-                      {...props}
-                    >
-                      {children}
-                    </a>
-                  );
-                },
-              }}
-            >
-              {text}
-            </ReactMarkdown>
-          </div>
+          <>
+            {hasReasoning && (
+              <details open={isThinking} className="mb-2">
+                <summary className="cursor-pointer text-xs text-muted select-none hover:text-foreground/70 transition-colors">
+                  {isThinking ? "Thinking..." : "Thought process"}
+                </summary>
+                <div className="mt-1.5 text-xs italic text-muted/80 leading-relaxed border-l-2 border-border-ui pl-3">
+                  {reasoningText}
+                </div>
+              </details>
+            )}
+            <div className="prose prose-sm max-w-none">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={markdownComponents}
+              >
+                {text}
+              </ReactMarkdown>
+            </div>
+          </>
         )}
       </div>
     </div>

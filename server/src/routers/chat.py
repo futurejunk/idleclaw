@@ -79,11 +79,14 @@ async def chat(request: ChatRequest):
 
                     token = msg.get("token", "")
                     if token:
+                        delta = {"content": token}
+                        if msg.get("thinking"):
+                            delta["reasoning"] = True
                         chunk = {
                             "id": chat_id,
                             "object": "chat.completion.chunk",
                             "model": request.model,
-                            "choices": [{"delta": {"content": token}, "index": 0}],
+                            "choices": [{"delta": delta, "index": 0}],
                         }
                         yield {"data": json.dumps(chunk)}
         finally:

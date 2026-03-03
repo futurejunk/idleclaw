@@ -98,13 +98,16 @@ class NodeConnection:
         logger.info("Inference request %s for model %s", request_id, model)
 
         try:
-            async for token in ollama_bridge.stream_chat(model, messages):
-                await self._ws.send(json.dumps({
+            async for token_type, token in ollama_bridge.stream_chat(model, messages):
+                chunk = {
                     "type": "inference_chunk",
                     "request_id": request_id,
                     "token": token,
                     "done": False,
-                }))
+                }
+                if token_type == "thinking":
+                    chunk["thinking"] = True
+                await self._ws.send(json.dumps(chunk))
 
             # Send done
             await self._ws.send(json.dumps({

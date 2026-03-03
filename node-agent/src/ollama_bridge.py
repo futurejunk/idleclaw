@@ -38,12 +38,16 @@ async def check_health() -> bool:
 
 
 async def stream_chat(model: str, messages: list[dict]):
+    """Yield (token_type, token_text) tuples. token_type is "thinking" or "content"."""
     client = AsyncClient(host=OLLAMA_HOST)
-    stream = await client.chat(model=model, messages=messages, stream=True)
+    stream = await client.chat(model=model, messages=messages, stream=True, think=True)
     async for chunk in stream:
-        token = chunk["message"]["content"]
-        if token:
-            yield token
+        thinking = chunk["message"].get("thinking", "")
+        content = chunk["message"].get("content", "")
+        if thinking:
+            yield ("thinking", thinking)
+        if content:
+            yield ("content", content)
 
 
 async def main():
@@ -70,8 +74,11 @@ async def main():
     print(f"Prompt: {test_message}\n")
     print("Response: ", end="", flush=True)
 
-    async for token in stream_chat(model, [{"role": "user", "content": test_message}]):
-        print(token, end="", flush=True)
+    async for token_type, token in stream_chat(model, [{"role": "user", "content": test_message}]):
+        if token_type == "thinking":
+            print(f"[thinking] {token}", end="", flush=True)
+        else:
+            print(token, end="", flush=True)
 
     print("\n\nDone.")
 

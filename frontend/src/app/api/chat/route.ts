@@ -16,6 +16,7 @@ export async function POST(req: Request) {
   );
 
   const partId = generateId();
+  const reasoningId = generateId();
 
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
@@ -30,11 +31,12 @@ export async function POST(req: Request) {
       }
 
       writer.write({ type: "start" });
-      writer.write({ type: "text-start", id: partId });
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let inReasoning = false;
+      let inText = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -53,9 +55,28 @@ export async function POST(req: Request) {
 
           try {
             const chunk = JSON.parse(data);
-            const token = chunk.choices?.[0]?.delta?.content;
+            const delta = chunk.choices?.[0]?.delta;
+            const token = delta?.content;
+            const isReasoning = delta?.reasoning === true;
+
             if (token) {
-              writer.write({ type: "text-delta", delta: token, id: partId });
+              if (isReasoning) {
+                if (!inReasoning) {
+                  writer.write({ type: "reasoning-start", id: reasoningId });
+                  inReasoning = true;
+                }
+                writer.write({ type: "reasoning-delta", delta: token, id: reasoningId });
+              } else {
+                if (inReasoning) {
+                  writer.write({ type: "reasoning-end", id: reasoningId });
+                  inReasoning = false;
+                }
+                if (!inText) {
+                  writer.write({ type: "text-start", id: partId });
+                  inText = true;
+                }
+                writer.write({ type: "text-delta", delta: token, id: partId });
+              }
             }
           } catch {
             // skip non-JSON lines
@@ -63,6 +84,12 @@ export async function POST(req: Request) {
         }
       }
 
+      if (inReasoning) {
+        writer.write({ type: "reasoning-end", id: reasoningId });
+      }
+      if (!inText) {
+        writer.write({ type: "text-start", id: partId });
+      }
       writer.write({ type: "text-end", id: partId });
       writer.write({ type: "finish", finishReason: "stop" });
     },

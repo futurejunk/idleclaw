@@ -30,8 +30,12 @@ export function MessageList({ messages, isLoading, chatError, onSuggestionClick 
       {messages.length === 0 && !isLoading && (
         <WelcomeScreen onSuggestionClick={onSuggestionClick} />
       )}
-      {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} />
+      {messages.map((message, i) => (
+        <MessageBubble
+          key={message.id}
+          message={message}
+          isStreaming={isLoading && i === messages.length - 1 && message.role === "assistant"}
+        />
       ))}
       {showTyping && <TypingIndicator />}
       {chatError && (

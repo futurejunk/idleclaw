@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, generateId } from "ai";
 import { useHealth } from "@/hooks/use-health";
 import { MessageList } from "./message-list";
 import { ChatInput } from "./chat-input";
 import { Header } from "../layout/header";
+import { IDLECLAW_QUESTION, IDLECLAW_ANSWER } from "./welcome-screen";
 
 export function ChatContainer() {
   const { state: healthState, nodeCount } = useHealth();
@@ -62,6 +63,7 @@ export function ChatContainer() {
   );
 
   const [chatError, setChatError] = useState<string | null>(null);
+  const [fakeStreaming, setFakeStreaming] = useState(false);
 
   const { messages, setMessages, sendMessage, status } = useChat({
     transport,
@@ -75,13 +77,43 @@ export function ChatContainer() {
   });
   const [input, setInput] = useState("");
 
-  const isLoading = status === "submitted" || status === "streaming";
+  const isLoading = fakeStreaming || status === "submitted" || status === "streaming";
   const isOffline = healthState === "offline";
   const showBanner = isOffline && !bannerDismissed;
 
+  const streamFakeAnswer = useCallback((baseMessages: typeof messages) => {
+    const words = IDLECLAW_ANSWER.split(" ");
+    const userMsg = { id: generateId(), role: "user" as const, parts: [{ type: "text" as const, text: IDLECLAW_QUESTION }] };
+    const assistantId = generateId();
+    let wordIndex = 0;
+
+    setFakeStreaming(true);
+    setMessages([...baseMessages, userMsg, { id: assistantId, role: "assistant", parts: [{ type: "text", text: "" }] }]);
+
+    const interval = setInterval(() => {
+      wordIndex += 2;
+      const partial = words.slice(0, wordIndex).join(" ");
+      setMessages([...baseMessages, userMsg, { id: assistantId, role: "assistant", parts: [{ type: "text", text: partial }] }]);
+
+      if (wordIndex >= words.length) {
+        clearInterval(interval);
+        setFakeStreaming(false);
+      }
+    }, 30);
+  }, [setMessages]);
+
   const handleSend = (text?: string) => {
     const msg = (text ?? input).trim();
-    if (!msg || isLoading || isOffline) return;
+    if (!msg || isLoading) return;
+
+    if (msg === IDLECLAW_QUESTION) {
+      setChatError(null);
+      setInput("");
+      streamFakeAnswer(messages);
+      return;
+    }
+
+    if (isOffline) return;
     setChatError(null);
     setInput("");
     sendMessage({ text: msg });

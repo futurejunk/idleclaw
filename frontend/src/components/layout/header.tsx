@@ -36,6 +36,14 @@ export function Header({ models, selectedModel, onModelChange, modelError, healt
           error={modelError}
         />
         <ConnectionStatus state={healthState} nodeCount={nodeCount} />
+        <a
+          href="https://github.com/futurejunk/idleclaw"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hidden sm:inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-banner-text/70 hover:bg-white/10 hover:text-banner-text transition-colors"
+        >
+          Contribute your GPU
+        </a>
       </div>
     </header>
   );

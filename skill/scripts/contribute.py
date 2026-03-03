@@ -101,6 +101,9 @@ async def stream_inference(params: dict):
         for key in ("role", "content", "thinking", "tool_calls"):
             val = message.get(key) if isinstance(message, dict) else getattr(message, key, None)
             if val is not None and val != "" and val != []:
+                # Convert Pydantic objects (e.g. ToolCall) to plain dicts for JSON serialization
+                if key == "tool_calls" and isinstance(val, list):
+                    val = [tc.model_dump() if hasattr(tc, "model_dump") else tc for tc in val]
                 msg_dict[key] = val
         # Preserve any unknown future fields from the message object
         if isinstance(message, dict):

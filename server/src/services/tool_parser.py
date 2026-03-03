@@ -60,15 +60,16 @@ def _parse_fallback_tool_calls(content: str) -> list[dict]:
             continue
     # Fallback: try unclosed tags if no closed matches found
     if not results:
+        decoder = json.JSONDecoder()
         for match in _TOOL_CALL_UNCLOSED.finditer(content):
-            raw = match.group(1).rstrip()
+            raw = match.group(1).strip()
             try:
-                parsed = json.loads(raw)
+                parsed, _ = decoder.raw_decode(raw)
                 name = parsed.get("name", "")
                 arguments = parsed.get("arguments", {})
                 if name:
                     results.append({"name": name, "arguments": arguments})
-            except (json.JSONDecodeError, TypeError):
+            except (json.JSONDecodeError, TypeError, ValueError):
                 continue
     return results
 

@@ -93,7 +93,11 @@ async def chat(request: ChatRequest):
                         raw_chunk = msg.get("chunk", {})
 
                         if raw_chunk.get("done"):
-                            done_message = raw_chunk.get("message", {})
+                            final_msg = raw_chunk.get("message", {})
+                            # Merge with previously captured tool_calls (Ollama sends them before done)
+                            if done_message and "tool_calls" in done_message:
+                                final_msg["tool_calls"] = done_message["tool_calls"]
+                            done_message = final_msg
                             break
 
                         message = raw_chunk.get("message", {})

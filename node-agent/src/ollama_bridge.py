@@ -42,16 +42,20 @@ async def stream_chat(model: str, messages: list[dict]):
     client = AsyncClient(host=OLLAMA_HOST)
     try:
         stream = await client.chat(model=model, messages=messages, stream=True, think=True)
+        async for chunk in stream:
+            thinking = chunk["message"].get("thinking", "")
+            content = chunk["message"].get("content", "")
+            if thinking:
+                yield ("thinking", thinking)
+            if content:
+                yield ("content", content)
     except Exception:
         # Model doesn't support thinking — fall back without it
         stream = await client.chat(model=model, messages=messages, stream=True)
-    async for chunk in stream:
-        thinking = chunk["message"].get("thinking", "")
-        content = chunk["message"].get("content", "")
-        if thinking:
-            yield ("thinking", thinking)
-        if content:
-            yield ("content", content)
+        async for chunk in stream:
+            content = chunk["message"].get("content", "")
+            if content:
+                yield ("content", content)
 
 
 async def main():

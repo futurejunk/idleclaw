@@ -73,7 +73,7 @@ async def stream_chat(model: str, messages: list[dict], *, think: bool = False):
             return
         except Exception:
             pass  # Model doesn't support thinking — fall back below
-    stream = await client.chat(model=model, messages=messages, stream=True, keep_alive=-1)
+    stream = await client.chat(model=model, messages=messages, stream=True, think=False, keep_alive=-1)
     async for chunk in stream:
         content = chunk["message"].get("content", "")
         if content:

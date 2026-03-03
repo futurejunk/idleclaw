@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { UIMessage } from "ai";
 import { MessageBubble } from "./message-bubble";
 import { TypingIndicator } from "./typing-indicator";
@@ -15,10 +15,30 @@ interface MessageListProps {
 
 export function MessageList({ messages, isLoading, chatError, onSuggestionClick }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const userScrolledUp = useRef(false);
+
+  const handleScroll = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    // Consider "at bottom" if within 100px of the bottom
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    userScrolledUp.current = !atBottom;
+  }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!userScrolledUp.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, isLoading]);
+
+  // Reset scroll lock when a new user message is sent
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (last?.role === "user") {
+      userScrolledUp.current = false;
+    }
+  }, [messages.length]);
 
   // Show typing indicator when loading and no visible assistant content yet.
   // The AI SDK creates an empty assistant message on stream start, so we also
@@ -29,7 +49,7 @@ export function MessageList({ messages, isLoading, chatError, onSuggestionClick 
   const showTyping = isLoading && !lastAssistantHasContent;
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+    <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
       {messages.length === 0 && !isLoading && (
         <WelcomeScreen onSuggestionClick={onSuggestionClick} />
       )}

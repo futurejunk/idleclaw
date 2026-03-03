@@ -56,6 +56,25 @@ export async function POST(req: Request) {
           try {
             const chunk = JSON.parse(data);
             const delta = chunk.choices?.[0]?.delta;
+
+            // Handle tool call status events
+            if (delta?.tool_call) {
+              const { name, status: toolStatus } = delta.tool_call;
+              if (toolStatus === "executing") {
+                if (inReasoning) {
+                  writer.write({ type: "reasoning-end", id: reasoningId });
+                  inReasoning = false;
+                }
+                if (!inText) {
+                  writer.write({ type: "text-start", id: partId });
+                  inText = true;
+                }
+                const label = name === "web_search" ? "Searching the web" : `Running ${name}`;
+                writer.write({ type: "text-delta", delta: `\n\n---\n**${label}...**\n---\n\n`, id: partId });
+              }
+              continue;
+            }
+
             const token = delta?.content;
             const isReasoning = delta?.reasoning === true;
 

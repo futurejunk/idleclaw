@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     max_nodes_per_ip: int = 3
     max_models_per_node: int = 20
 
+    # Tools
+    searxng_url: str = ""
+
     # Graceful shutdown
     shutdown_drain_timeout: int = 30
 

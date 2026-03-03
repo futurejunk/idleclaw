@@ -5,6 +5,7 @@ import { ModelSelector } from "./model-selector";
 
 interface HeaderProps {
   models: string[];
+  modelCapabilities: Record<string, Record<string, boolean>>;
   selectedModel: string;
   onModelChange: (model: string) => void;
   modelError: boolean;
@@ -15,7 +16,7 @@ interface HeaderProps {
   onThinkingChange: (enabled: boolean) => void;
 }
 
-export function Header({ models, selectedModel, onModelChange, modelError, healthState, nodeCount, onNewChat, thinkingEnabled, onThinkingChange }: HeaderProps) {
+export function Header({ models, modelCapabilities, selectedModel, onModelChange, modelError, healthState, nodeCount, onNewChat, thinkingEnabled, onThinkingChange }: HeaderProps) {
   return (
     <header className="border-b border-banner/20 bg-banner px-4 py-3 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2">
@@ -33,6 +34,7 @@ export function Header({ models, selectedModel, onModelChange, modelError, healt
       <div className="flex items-center gap-3 sm:gap-4">
         <ModelSelector
           models={models}
+          capabilities={modelCapabilities}
           selected={selectedModel}
           onChange={onModelChange}
           error={modelError}

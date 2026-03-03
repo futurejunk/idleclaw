@@ -23,12 +23,18 @@ MAX_DELAY = 60
 
 THINKING_MODEL_PATTERNS = ("qwen3",)
 
+TOOL_CALL_MODEL_PATTERNS = (
+    "qwen3", "llama3.1", "llama3.3", "mistral", "ministral",
+    "granite4", "devstral", "gpt-oss", "qwen3.5", "functiongemma",
+)
+
 
 def detect_capabilities(model_name: str) -> dict:
     """Detect model capabilities from name heuristics."""
     name_lower = model_name.lower()
     return {
         "thinking": any(p in name_lower for p in THINKING_MODEL_PATTERNS),
+        "tool_calls": any(p in name_lower for p in TOOL_CALL_MODEL_PATTERNS),
     }
 
 
@@ -90,12 +96,21 @@ async def stream_inference(params: dict):
     stream = await client.chat(**params)
     async for chunk in stream:
         message = chunk.get("message", {})
+        # Convert Ollama Message object to a plain dict, preserving all fields
+        msg_dict: dict = {}
+        for key in ("role", "content", "thinking", "tool_calls"):
+            val = message.get(key) if isinstance(message, dict) else getattr(message, key, None)
+            if val is not None and val != "" and val != []:
+                msg_dict[key] = val
+        # Preserve any unknown future fields from the message object
+        if isinstance(message, dict):
+            for key, val in message.items():
+                if key not in msg_dict and val is not None and val != "" and val != []:
+                    msg_dict[key] = val
+        msg_dict.setdefault("role", "assistant")
+        msg_dict.setdefault("content", "")
         yield {
-            "message": {
-                "role": getattr(message, "role", "assistant"),
-                "content": message.get("content", "") or "",
-                "thinking": message.get("thinking", "") or "",
-            },
+            "message": msg_dict,
             "done": chunk.get("done", False),
         }
 

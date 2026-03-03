@@ -12,6 +12,7 @@ import { IDLECLAW_QUESTION, IDLECLAW_ANSWER } from "./welcome-screen";
 export function ChatContainer() {
   const { state: healthState, nodeCount } = useHealth();
   const [models, setModels] = useState<string[]>([]);
+  const [modelCapabilities, setModelCapabilities] = useState<Record<string, Record<string, boolean>>>({});
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [modelError, setModelError] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
@@ -21,8 +22,9 @@ export function ChatContainer() {
     try {
       const r = await fetch("/api/models");
       if (!r.ok) throw new Error("not ok");
-      const data: { models: string[] } = await r.json();
+      const data: { models: string[]; capabilities?: Record<string, Record<string, boolean>> } = await r.json();
       setModels(data.models);
+      if (data.capabilities) setModelCapabilities(data.capabilities);
       setModelError(false);
       if (data.models.length > 0) setSelectedModel((prev) => prev || data.models[0]);
     } catch {
@@ -149,6 +151,7 @@ export function ChatContainer() {
     <div className="flex h-dvh flex-col">
       <Header
         models={models}
+        modelCapabilities={modelCapabilities}
         selectedModel={selectedModel}
         onModelChange={setSelectedModel}
         modelError={modelError}

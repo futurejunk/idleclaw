@@ -40,7 +40,11 @@ async def check_health() -> bool:
 async def stream_chat(model: str, messages: list[dict]):
     """Yield (token_type, token_text) tuples. token_type is "thinking" or "content"."""
     client = AsyncClient(host=OLLAMA_HOST)
-    stream = await client.chat(model=model, messages=messages, stream=True, think=True)
+    try:
+        stream = await client.chat(model=model, messages=messages, stream=True, think=True)
+    except Exception:
+        # Model doesn't support thinking — fall back without it
+        stream = await client.chat(model=model, messages=messages, stream=True)
     async for chunk in stream:
         thinking = chunk["message"].get("thinking", "")
         content = chunk["message"].get("content", "")

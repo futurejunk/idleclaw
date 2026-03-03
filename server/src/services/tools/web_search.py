@@ -26,19 +26,17 @@ async def web_search_handler(query: str) -> str:
         resp.raise_for_status()
         data = resp.json()
 
-    results = data.get("results", [])[:5]
+    results = data.get("results", [])[:3]
     if not results:
         return f"No results found for: {query}"
 
     lines = [f"Search results for: {query}\n"]
     for i, r in enumerate(results, 1):
         title = r.get("title", "")
-        url = r.get("url", "")
         snippet = r.get("content", "")
-        if len(snippet) > 500:
-            snippet = snippet[:500] + "..."
+        if len(snippet) > 200:
+            snippet = snippet[:200] + "..."
         lines.append(f"{i}. {title}")
-        lines.append(f"   URL: {url}")
         if snippet:
             lines.append(f"   {snippet}")
         lines.append("")

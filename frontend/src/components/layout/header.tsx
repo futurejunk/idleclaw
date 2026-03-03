@@ -11,9 +11,11 @@ interface HeaderProps {
   healthState: ConnectionState;
   nodeCount: number;
   onNewChat?: () => void;
+  thinkingEnabled: boolean;
+  onThinkingChange: (enabled: boolean) => void;
 }
 
-export function Header({ models, selectedModel, onModelChange, modelError, healthState, nodeCount, onNewChat }: HeaderProps) {
+export function Header({ models, selectedModel, onModelChange, modelError, healthState, nodeCount, onNewChat, thinkingEnabled, onThinkingChange }: HeaderProps) {
   return (
     <header className="border-b border-banner/20 bg-banner px-4 py-3 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2">
@@ -35,6 +37,17 @@ export function Header({ models, selectedModel, onModelChange, modelError, healt
           onChange={onModelChange}
           error={modelError}
         />
+        <button
+          onClick={() => onThinkingChange(!thinkingEnabled)}
+          className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+            thinkingEnabled
+              ? "bg-brand/20 text-brand hover:bg-brand/30"
+              : "text-banner-text/50 hover:bg-white/10 hover:text-banner-text/70"
+          }`}
+          title={thinkingEnabled ? "Thinking mode on" : "Thinking mode off"}
+        >
+          {thinkingEnabled ? "Think: On" : "Think: Off"}
+        </button>
         <ConnectionStatus state={healthState} nodeCount={nodeCount} />
         <a
           href="https://github.com/futurejunk/idleclaw"

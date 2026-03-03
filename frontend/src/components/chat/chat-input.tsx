@@ -2,7 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import Link from "next/link";
-import { Send } from "lucide-react";
+import { Send, Square } from "lucide-react";
 
 interface ChatInputProps {
   input: string;
@@ -11,9 +11,10 @@ interface ChatInputProps {
   focusTrigger?: number;
   onInputChange: (value: string) => void;
   onSend: () => void;
+  onStop: () => void;
 }
 
-export function ChatInput({ input, isLoading, disabled, focusTrigger, onInputChange, onSend }: ChatInputProps) {
+export function ChatInput({ input, isLoading, disabled, focusTrigger, onInputChange, onSend, onStop }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // JS fallback for auto-grow (Safari doesn't support field-sizing: content)
@@ -43,18 +44,28 @@ export function ChatInput({ input, isLoading, disabled, focusTrigger, onInputCha
             }
           }}
           placeholder="Send a message..."
-          disabled={isLoading || disabled}
+          disabled={disabled}
           rows={1}
           className="flex-1 resize-none rounded-[14px] border border-white/20 bg-white/10 px-4 py-3 text-sm text-banner-text placeholder-banner-text/50 focus:border-brand focus:outline-none disabled:opacity-50 [field-sizing:content] max-h-40"
         />
-        <button
-          type="button"
-          onClick={() => onSend()}
-          disabled={isLoading || disabled || !input.trim()}
-          className="rounded-[14px] bg-gradient-to-br from-brand to-brand-hover p-3 text-white hover:opacity-90 disabled:opacity-50"
-        >
-          <Send size={18} />
-        </button>
+        {isLoading ? (
+          <button
+            type="button"
+            onClick={onStop}
+            className="rounded-[14px] bg-red-500 p-3 text-white hover:bg-red-600"
+          >
+            <Square size={18} fill="currentColor" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onSend()}
+            disabled={disabled || !input.trim()}
+            className="rounded-[14px] bg-gradient-to-br from-brand to-brand-hover p-3 text-white hover:opacity-90 disabled:opacity-50"
+          >
+            <Send size={18} />
+          </button>
+        )}
       </div>
       <p className="mx-auto mt-1.5 max-w-3xl text-center text-[11px] text-banner-text/40">
         Messages are processed by community GPU contributors{" "}

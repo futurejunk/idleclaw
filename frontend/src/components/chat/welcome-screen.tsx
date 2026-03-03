@@ -10,7 +10,7 @@ export const IDLECLAW_ANSWER = `**IdleClaw** is a community-powered AI inference
 
 const SUGGESTIONS = [
   IDLECLAW_QUESTION,
-  "Write a Python function to find prime numbers",
+  "Explain recursion in simple terms",
   "What are the pros and cons of microservices?",
   "Help me write a cover letter for a software role",
 ];

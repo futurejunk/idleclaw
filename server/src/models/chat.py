@@ -13,3 +13,4 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     model: str = Field(min_length=1, max_length=settings.max_model_name_length)
     messages: list[ChatMessage] = Field(min_length=1, max_length=settings.max_messages_per_request)
+    think: bool = False

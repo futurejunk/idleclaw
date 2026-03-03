@@ -40,6 +40,7 @@ async def chat(request: ChatRequest):
         "request_id": request_id,
         "model": request.model,
         "messages": [{"role": m.role, "content": m.content} for m in request.messages],
+        "think": request.think,
     }))
     node.active_requests += 1
 

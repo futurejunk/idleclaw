@@ -75,6 +75,7 @@ class NodeConnection:
         request_id = msg["request_id"]
         model = msg["model"]
         messages = msg["messages"]
+        think = msg.get("think", False)
 
         if not self._rate_limiter.consume():
             logger.warning("Rate limited request %s", request_id)
@@ -98,7 +99,7 @@ class NodeConnection:
         logger.info("Inference request %s for model %s", request_id, model)
 
         try:
-            async for token_type, token in ollama_bridge.stream_chat(model, messages):
+            async for token_type, token in ollama_bridge.stream_chat(model, messages, think=think):
                 chunk = {
                     "type": "inference_chunk",
                     "request_id": request_id,

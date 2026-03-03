@@ -47,25 +47,30 @@ export function ChatContainer() {
   // Use a ref so the transport body always reads the latest selected model.
   // useChat captures the Chat instance (and its transport) once on mount,
   // so a plain inline transport would be stale.
+  const [thinkingEnabled, setThinkingEnabled] = useState(false);
+
   const selectedModelRef = useRef(selectedModel);
   selectedModelRef.current = selectedModel;
+  const thinkingEnabledRef = useRef(thinkingEnabled);
+  thinkingEnabledRef.current = thinkingEnabled;
 
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        body: () =>
-          selectedModelRef.current
-            ? { model: selectedModelRef.current }
-            : undefined,
+        body: () => ({
+          model: selectedModelRef.current || undefined,
+          think: thinkingEnabledRef.current,
+        }),
       }),
     [],
   );
 
   const [chatError, setChatError] = useState<string | null>(null);
   const [fakeStreaming, setFakeStreaming] = useState(false);
+  const fakeStreamIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { messages, setMessages, sendMessage, status } = useChat({
+  const { messages, setMessages, sendMessage, stop, status } = useChat({
     transport,
     onError: (error) => {
       if (error.message?.includes("503")) {
@@ -97,9 +102,11 @@ export function ChatContainer() {
 
       if (wordIndex >= words.length) {
         clearInterval(interval);
+        fakeStreamIntervalRef.current = null;
         setFakeStreaming(false);
       }
     }, 30);
+    fakeStreamIntervalRef.current = interval;
   }, [setMessages]);
 
   const handleSend = (text?: string) => {
@@ -119,9 +126,19 @@ export function ChatContainer() {
     sendMessage({ text: msg });
   };
 
+  const handleStop = () => {
+    if (fakeStreamIntervalRef.current) {
+      clearInterval(fakeStreamIntervalRef.current);
+      fakeStreamIntervalRef.current = null;
+      setFakeStreaming(false);
+    }
+    stop();
+  };
+
   const [focusTrigger, setFocusTrigger] = useState(0);
 
   const handleNewChat = () => {
+    handleStop();
     setMessages([]);
     setInput("");
     setChatError(null);
@@ -138,6 +155,8 @@ export function ChatContainer() {
         healthState={healthState}
         nodeCount={nodeCount}
         onNewChat={messages.length > 0 ? handleNewChat : undefined}
+        thinkingEnabled={thinkingEnabled}
+        onThinkingChange={setThinkingEnabled}
       />
       {showBanner && (
         <div className="flex items-center justify-between bg-red-50 border-b border-red-200 px-4 sm:px-6 py-2.5 text-sm text-red-700">
@@ -164,6 +183,7 @@ export function ChatContainer() {
           focusTrigger={focusTrigger}
           onInputChange={setInput}
           onSend={handleSend}
+          onStop={handleStop}
         />
       </div>
     </div>

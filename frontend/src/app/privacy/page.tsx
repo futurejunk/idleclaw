@@ -58,6 +58,30 @@ export default function PrivacyPage() {
               community hardware.
             </p>
           </div>
+          <div>
+            <h2 className="font-semibold text-foreground">Known risks</h2>
+            <p className="mt-1 text-muted">
+              IdleClaw is an open, community-run network. There are inherent risks you should be aware
+              of:
+            </p>
+            <ul className="mt-2 list-disc pl-5 space-y-1.5 text-muted">
+              <li>
+                <strong className="text-foreground">Unverified nodes.</strong> Contributors run their
+                own hardware. A malicious contributor could theoretically log prompts or return
+                manipulated responses. Most traffic is handled by seed nodes we operate, but community
+                nodes are not audited.
+              </li>
+              <li>
+                <strong className="text-foreground">No content moderation.</strong> There is no
+                server-side filtering of prompts or responses. Models have their own built-in safety
+                tuning, but IdleClaw does not add an additional moderation layer.
+              </li>
+              <li>
+                <strong className="text-foreground">No authentication.</strong> There are no user
+                accounts. Anyone can use the chat, and rate limiting is the only abuse protection.
+              </li>
+            </ul>
+          </div>
         </section>
 
         <div className="mt-10 border-t border-border pt-6">

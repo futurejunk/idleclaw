@@ -7,7 +7,7 @@ import logging
 from fastapi import WebSocket, WebSocketDisconnect
 
 from server.src.config import settings
-from server.src.models.node import ModelInfo, NodeInfo
+from server.src.models.node import ModelInfo, NodeInfo, detect_capabilities
 from server.src.services.registry import NodeRegistry
 
 logger = logging.getLogger(__name__)
@@ -76,7 +76,7 @@ async def node_websocket(
 
         ollama_version = msg.get("ollama_version", "")
         models = [
-            ModelInfo(name=m["name"], size=m["size"], capabilities=m.get("capabilities", {}))
+            ModelInfo(name=m["name"], size=m["size"], capabilities=detect_capabilities(m["name"]))
             for m in raw_models
         ]
         node = NodeInfo(

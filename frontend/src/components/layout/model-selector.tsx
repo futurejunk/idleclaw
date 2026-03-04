@@ -35,16 +35,11 @@ export function ModelSelector({ models, capabilities, selected, onChange, error 
       onChange={(e) => onChange(e.target.value)}
       className="rounded-[9px] border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-banner-text focus:border-brand focus:outline-none"
     >
-      {models.map((m) => {
-        const caps = capabilities[m];
-        const hasTools = caps?.tool_calls === true;
-        const label = hasTools ? `${m} \u{1F50D}` : m;
-        return (
-          <option key={m} value={m}>
-            {label}
-          </option>
-        );
-      })}
+      {models.map((m) => (
+        <option key={m} value={m}>
+          {m}
+        </option>
+      ))}
     </select>
   );
 }

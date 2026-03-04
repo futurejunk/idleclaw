@@ -70,7 +70,13 @@ def _register_web_search() -> None:
 
     tool_registry.register_tool(ToolDefinition(
         name="web_search",
-        description="Search the web for current information.",
+        description=(
+            "Search the web for current information. Use this tool when the user asks about "
+            "recent news, events, sports scores, software release versions, people, or any "
+            "factual question that may have changed after your training cutoff. "
+            "Examples: 'Who won the Oscar for best picture?', 'What is the latest Python version?', "
+            "'recent news about AI'"
+        ),
         parameters={
             "type": "object",
             "properties": {
@@ -83,10 +89,11 @@ def _register_web_search() -> None:
         },
         handler=web_search_handler,
         prompt_description=(
-            "Search the web for current information. "
-            "Use when the user asks about recent events, facts you're unsure about, "
-            "or anything that benefits from up-to-date information. "
-            "Input: {\"query\": \"your search query\"}"
+            "Search the web for current information. Use this tool when the user asks about "
+            "recent news, events, sports scores, software release versions, people, or any "
+            "factual question that may have changed after your training cutoff.\n"
+            "Examples: 'Who won the Oscar for best picture?', 'What is the latest Python version?'\n"
+            'Input: {"query": "your search query"}'
         ),
     ))
 

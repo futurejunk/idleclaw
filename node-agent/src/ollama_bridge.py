@@ -16,23 +16,6 @@ _health_cache: dict[str, float | bool] = {"healthy": True, "checked_at": 0.0}
 HEALTH_CACHE_TTL = 5  # seconds
 
 
-THINKING_MODEL_PATTERNS = ("qwen3",)
-
-TOOL_CALL_MODEL_PATTERNS = (
-    "qwen3", "llama3.1", "llama3.3", "mistral", "ministral",
-    "granite4", "devstral", "gpt-oss", "qwen3.5", "functiongemma",
-)
-
-
-def detect_capabilities(model_name: str) -> dict:
-    """Detect model capabilities from name heuristics."""
-    name_lower = model_name.lower()
-    return {
-        "thinking": any(p in name_lower for p in THINKING_MODEL_PATTERNS),
-        "tool_calls": any(p in name_lower for p in TOOL_CALL_MODEL_PATTERNS),
-    }
-
-
 async def get_ollama_version() -> str:
     """Get the Ollama server version string."""
     try:
@@ -53,7 +36,6 @@ async def list_models() -> list[dict]:
         {
             "name": m.model,
             "size": m.size,
-            "capabilities": detect_capabilities(m.model),
         }
         for m in response.models
     ]

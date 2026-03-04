@@ -67,7 +67,7 @@ uvicorn server.src.main:app --host 127.0.0.1 --port 8000
 cd node-agent
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
-IDLECLAW_SERVER=ws://localhost:8000 python -m src.main
+IDLECLAW_SERVER=ws://localhost:8000/ws/node python -m src.main
 ```
 
 The node agent will connect to the server and register your local Ollama models.

@@ -88,6 +88,8 @@ async def node_websocket(
             ollama_version=ollama_version,
         )
         registry.add_node(node)
+        from server.src.main import stats
+        stats.nodes_registered_total += 1
         logger.info("Node registered", extra={"node_id": node.node_id, "models": [m.name for m in models], "ip": client_ip})
 
         await websocket.send_text(json.dumps({"type": "registered", "node_id": node.node_id}))

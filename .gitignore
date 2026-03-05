@@ -28,5 +28,8 @@ dist/
 # Internal docs (plans, notes)
 docs/
 
+# Promo assets
+promo-assets/
+
 # OpenSpec
 openspec/

@@ -27,7 +27,7 @@ MAX_TOOL_ROUNDS = 5
 
 @router.post("/api/chat")
 async def chat(request: ChatRequest):
-    from server.src.main import registry, request_queues, request_node_map
+    from server.src.main import registry, request_queues, request_node_map, stats
 
     # Find the best node for the requested model
     node = RequestRouter.select_node(registry, request.model)
@@ -36,6 +36,7 @@ async def chat(request: ChatRequest):
 
     request_id = str(uuid.uuid4())
     request_start = time.monotonic()
+    stats.requests_active += 1
     logger.info("Inference request started", extra={"request_id": request_id, "model": request.model, "node_id": node.node_id})
     queue = create_request_queue(request_queues, request_node_map, request_id, node.node_id)
 
@@ -56,6 +57,7 @@ async def chat(request: ChatRequest):
     async def event_generator():
         nonlocal ollama_params, request_id, queue
         tool_round = 0
+        request_error: str | None = None
 
         try:
             while True:
@@ -68,6 +70,7 @@ async def chat(request: ChatRequest):
                     try:
                         msg = await asyncio.wait_for(queue.get(), timeout=REQUEST_TIMEOUT)
                     except asyncio.TimeoutError:
+                        request_error = "timeout"
                         error_chunk = {
                             "id": chat_id,
                             "object": "chat.completion.chunk",
@@ -79,6 +82,7 @@ async def chat(request: ChatRequest):
                         return
 
                     if msg["type"] == "inference_error":
+                        request_error = msg.get("error", "unknown")
                         error_chunk = {
                             "id": chat_id,
                             "object": "chat.completion.chunk",
@@ -220,7 +224,22 @@ async def chat(request: ChatRequest):
 
         finally:
             duration = time.monotonic() - request_start
-            logger.info("Inference request completed", extra={"request_id": request_id, "model": request.model, "node_id": node.node_id, "duration_s": round(duration, 2)})
+            stats.requests_total += 1
+            stats.requests_active = max(0, stats.requests_active - 1)
+            status = "error" if request_error else "success"
+            if request_error:
+                stats.requests_errors_total += 1
+            log_extra = {
+                "request_id": request_id,
+                "model": request.model,
+                "node_id": node.node_id,
+                "duration_s": round(duration, 2),
+                "status": status,
+                "tool_rounds": tool_round,
+            }
+            if request_error:
+                log_extra["error"] = request_error
+            logger.info("Inference request completed", extra=log_extra)
             node.active_requests = max(0, node.active_requests - 1)
             remove_request_queue(request_queues, request_node_map, request_id)
             # Tell node to cancel if still running (client may have disconnected)

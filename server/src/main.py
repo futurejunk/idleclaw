@@ -10,8 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from server.src.config import settings
 from server.src.middleware.rate_limiter import RateLimitMiddleware, rate_limiter
-from server.src.routers import chat, health, nodes
+from server.src.routers import chat, health, metrics, nodes
 from server.src.services.registry import NodeRegistry
+from server.src.services.stats import ServerStats
 from server.src.ws.node_handler import node_websocket
 
 
@@ -49,6 +50,7 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 registry = NodeRegistry()
+stats = ServerStats()
 request_queues: dict[str, asyncio.Queue] = {}
 request_node_map: dict[str, str] = {}  # request_id -> node_id
 
@@ -117,6 +119,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(metrics.router)
 app.include_router(chat.router)
 app.include_router(nodes.router)
 

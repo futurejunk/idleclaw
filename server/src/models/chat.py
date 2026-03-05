@@ -6,7 +6,7 @@ from server.src.config import settings
 
 
 class ChatMessage(BaseModel):
-    role: Literal["user", "assistant", "system", "tool"]
+    role: Literal["user", "assistant"]
     content: str = Field(min_length=1, max_length=settings.max_message_length)
 
 

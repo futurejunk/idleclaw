@@ -24,6 +24,7 @@ class Settings(BaseSettings):
 
     # Tools
     searxng_url: str = ""
+    tool_rate_limit_rpm: int = 20  # max tool calls per minute per node
 
     # Graceful shutdown
     shutdown_drain_timeout: int = 30

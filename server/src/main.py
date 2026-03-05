@@ -13,6 +13,7 @@ from server.src.middleware.rate_limiter import RateLimitMiddleware, rate_limiter
 from server.src.routers import chat, health, metrics, nodes
 from server.src.services.registry import NodeRegistry
 from server.src.services.stats import ServerStats
+from server.src.services.tool_registry import tool_registry
 from server.src.ws.node_handler import node_websocket
 
 
@@ -70,6 +71,7 @@ async def _ping_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    tool_registry.freeze()
     health.set_start_time(time.time())
     registry.start_eviction()
     rate_limiter.start_cleanup()

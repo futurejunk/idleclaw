@@ -75,9 +75,9 @@ def test_system_prompt_injected_without_tools():
     assert "Today's date is" in system_msg["content"]
 
 
-def test_system_prompt_with_user_system_message():
+def test_system_prompt_without_user_system_message():
+    """Clients can only send user/assistant roles; server always injects system prompt."""
     request = _make_request(messages=[
-        {"role": "system", "content": "You are a pirate."},
         {"role": "user", "content": "hello"},
     ])
     node = _make_node()
@@ -86,9 +86,7 @@ def test_system_prompt_with_user_system_message():
     system_msg = params["messages"][0]
     assert system_msg["role"] == "system"
     assert _BASE_IDENTITY in system_msg["content"]
-    assert "You are a pirate." in system_msg["content"]
-    # Identity comes before user system message
-    assert system_msg["content"].index(_BASE_IDENTITY) < system_msg["content"].index("You are a pirate.")
+    assert len(params["messages"]) == 2  # system + user
 
 
 def test_system_prompt_with_tools_fallback():
@@ -131,10 +129,9 @@ def test_system_prompt_with_tools_native():
     assert "tools" in params  # Native tools array present
 
 
-def test_system_prompt_ordering_with_tools_and_user_msg():
-    """Full composition: identity + date + tools + user system msg."""
+def test_system_prompt_ordering_with_tools():
+    """Composition: identity + date + tools in system prompt."""
     request = _make_request(messages=[
-        {"role": "system", "content": "Custom instructions."},
         {"role": "user", "content": "hello"},
     ])
     node = _make_node(capabilities={"tool_calls": False})
@@ -153,9 +150,8 @@ def test_system_prompt_ordering_with_tools_and_user_msg():
     identity_pos = content.index(_BASE_IDENTITY)
     date_pos = content.index("Today's date is")
     tools_pos = content.index("test_tool")
-    user_pos = content.index("Custom instructions.")
 
-    assert identity_pos < date_pos < tools_pos < user_pos
+    assert identity_pos < date_pos < tools_pos
 
 
 # --- detect_capabilities tests ---

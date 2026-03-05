@@ -16,8 +16,15 @@ class ToolDefinition:
 class ToolRegistry:
     def __init__(self) -> None:
         self._tools: dict[str, ToolDefinition] = {}
+        self._frozen: bool = False
+
+    def freeze(self) -> None:
+        """Prevent further tool registration."""
+        self._frozen = True
 
     def register_tool(self, tool: ToolDefinition) -> None:
+        if self._frozen:
+            raise RuntimeError("Tool registry is frozen")
         if tool.name in self._tools:
             raise ValueError(f"Tool '{tool.name}' is already registered")
         self._tools[tool.name] = tool
@@ -52,6 +59,41 @@ class ToolRegistry:
             "After receiving tool results, provide your final answer."
         )
         return "\n".join(lines)
+
+    def validate_arguments(self, name: str, arguments: dict) -> str | None:
+        """Return None if valid, error message string if invalid."""
+        tool = self._tools.get(name)
+        if tool is None:
+            return f"unknown tool '{name}'"
+
+        schema = tool.parameters
+        properties = schema.get("properties", {})
+        required = schema.get("required", [])
+
+        for param in required:
+            if param not in arguments:
+                return f"missing required argument '{param}'"
+
+        for param in arguments:
+            if param not in properties:
+                return f"unexpected argument '{param}'"
+
+        type_map = {
+            "string": str,
+            "number": (int, float),
+            "integer": int,
+            "boolean": bool,
+            "array": list,
+            "object": dict,
+        }
+        for param, value in arguments.items():
+            if param in properties:
+                expected = properties[param].get("type")
+                if expected and expected in type_map:
+                    if not isinstance(value, type_map[expected]):
+                        return f"argument '{param}' must be a {expected}"
+
+        return None
 
     def get_handler(self, name: str) -> Callable[..., Coroutine[Any, Any, str]] | None:
         tool = self._tools.get(name)

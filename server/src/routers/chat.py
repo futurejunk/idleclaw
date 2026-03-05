@@ -14,7 +14,7 @@ from server.src.services.node_connection import create_request_queue, remove_req
 from server.src.services.ollama_params import build_ollama_params
 from server.src.services.router import RequestRouter
 from server.src.services.tool_execution import execute_tool_calls
-from server.src.services.tool_parser import parse_tool_calls, strip_tool_tags
+from server.src.services.tool_parser import ContentTagStripper, parse_tool_calls, strip_tool_tags
 from server.src.services.tool_registry import tool_registry
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,9 @@ async def chat(request: ChatRequest):
 
     # Build initial ollama_params with tools
     ollama_params = build_ollama_params(request, node, tool_registry)
+    tools_offered = "tools" in ollama_params or (
+        not tool_registry.is_empty() and not supports_native_tools
+    )
     await node.websocket.send_text(json.dumps({
         "type": "inference_request",
         "request_id": request_id,
@@ -58,6 +61,7 @@ async def chat(request: ChatRequest):
         nonlocal ollama_params, request_id, queue
         tool_round = 0
         request_error: str | None = None
+        tag_stripper = ContentTagStripper()
 
         try:
             while True:
@@ -126,20 +130,39 @@ async def chat(request: ChatRequest):
                             yield {"data": json.dumps(chunk)}
                         if content:
                             accumulated_content += content
-                            delta = {"content": content}
-                            chunk = {
-                                "id": chat_id,
-                                "object": "chat.completion.chunk",
-                                "model": request.model,
-                                "choices": [{"delta": delta, "index": 0}],
-                            }
-                            yield {"data": json.dumps(chunk)}
+                            display_content = tag_stripper.feed(content)
+                            if display_content:
+                                delta = {"content": display_content}
+                                chunk = {
+                                    "id": chat_id,
+                                    "object": "chat.completion.chunk",
+                                    "model": request.model,
+                                    "choices": [{"delta": delta, "index": 0}],
+                                }
+                                yield {"data": json.dumps(chunk)}
 
-                # Stream complete — check for tool calls
-                tool_calls = parse_tool_calls(accumulated_content, done_message)
+                # Stream complete — check for tool calls (only if tools were offered)
+                tool_calls = (
+                    parse_tool_calls(
+                        accumulated_content,
+                        done_message,
+                        native_only=supports_native_tools,
+                    )
+                    if tools_offered
+                    else []
+                )
 
                 if not tool_calls:
-                    # No tool calls — done (existing behavior)
+                    # Flush any remaining buffered content from tag stripper
+                    remaining = tag_stripper.flush()
+                    if remaining:
+                        flush_chunk = {
+                            "id": chat_id,
+                            "object": "chat.completion.chunk",
+                            "model": request.model,
+                            "choices": [{"delta": {"content": remaining}, "index": 0}],
+                        }
+                        yield {"data": json.dumps(flush_chunk)}
                     yield {"data": "[DONE]"}
                     return
 
@@ -163,7 +186,7 @@ async def chat(request: ChatRequest):
                     yield {"data": json.dumps(tool_status_chunk)}
 
                 # Execute tools
-                tool_results = await execute_tool_calls(tool_calls)
+                tool_results = await execute_tool_calls(tool_calls, tool_registry, node_id=node.node_id)
 
                 # Emit SSE tool status events (done)
                 for tr in tool_results:

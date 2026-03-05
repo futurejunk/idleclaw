@@ -31,5 +31,8 @@ docs/
 # Promo assets
 promo-assets/
 
+# Security (red team PoCs)
+security/
+
 # OpenSpec
 openspec/

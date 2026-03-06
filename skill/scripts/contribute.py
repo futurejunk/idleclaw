@@ -6,6 +6,7 @@ import logging
 import os
 import random
 import sys
+import time
 import uuid
 
 from ollama import AsyncClient
@@ -27,7 +28,6 @@ HEALTH_CACHE_TTL = 5  # seconds
 
 async def check_health() -> bool:
     """Check if Ollama is reachable. Caches result for HEALTH_CACHE_TTL seconds."""
-    import time
     now = time.monotonic()
     if now - _health_cache["checked_at"] < HEALTH_CACHE_TTL:
         return bool(_health_cache["healthy"])
@@ -67,12 +67,8 @@ async def check_ollama() -> list[dict]:
             for m in response.models
         ]
     except Exception as e:
-        print(f"Error: Cannot connect to Ollama at {OLLAMA_HOST}", file=sys.stderr)
-        print(f"  Detail: {e}", file=sys.stderr)
-        print("", file=sys.stderr)
-        print("Make sure Ollama is running:", file=sys.stderr)
-        print("  1. Start Ollama: ollama serve", file=sys.stderr)
-        print("  2. Pull a model: ollama pull llama3.2:3b", file=sys.stderr)
+        print(f"Error: Cannot connect to Ollama at {OLLAMA_HOST} ({e})", file=sys.stderr)
+        print("Start Ollama (ollama serve) and pull a model (ollama pull llama3.2:3b).", file=sys.stderr)
         sys.exit(1)
 
 
@@ -223,23 +219,15 @@ async def run_node(server_url: str, models: list[dict], ollama_version: str) -> 
 async def main():
     server_url = get_server_url()
 
-    print("IdleClaw Contribute")
-    print("===================")
-    print(f"Server: {server_url}")
-    print(f"Ollama: {OLLAMA_HOST}")
-    print()
+    print(f"IdleClaw Contribute | Server: {server_url} | Ollama: {OLLAMA_HOST}")
 
-    # Check Ollama first
     models = await check_ollama()
     if not models:
         print("Error: No models found. Pull a model first: ollama pull llama3.2:3b", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Found {len(models)} model(s):")
     for m in models:
-        size_gb = m["size"] / (1024**3)
-        print(f"  - {m['name']} ({size_gb:.1f} GB)")
-    print()
+        print(f"  - {m['name']} ({m['size'] / (1024**3):.1f} GB)")
 
     # Detect Ollama version
     ollama_version = await get_ollama_version()
@@ -256,18 +244,9 @@ async def main():
             await run_node(server_url, models, ollama_version)
             attempt = 0
         except websockets.exceptions.InvalidURI:
-            print(f"Error: Invalid server URL: {server_url}", file=sys.stderr)
-            print("Check your IDLECLAW_SERVER environment variable.", file=sys.stderr)
+            print(f"Error: Invalid server URL: {server_url}. Check IDLECLAW_SERVER.", file=sys.stderr)
             sys.exit(1)
-        except (ConnectionRefusedError, OSError) as e:
-            if attempt == 0:
-                print(f"Error: Cannot connect to server at {server_url}", file=sys.stderr)
-                print(f"  Detail: {e}", file=sys.stderr)
-                print("", file=sys.stderr)
-                print("Check that the IdleClaw server is running, or set IDLECLAW_SERVER.", file=sys.stderr)
-            else:
-                logger.warning("Connection lost: %s", e)
-        except Exception as e:
+        except (ConnectionRefusedError, OSError, Exception) as e:
             logger.warning("Connection lost: %s", e)
 
         delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY) + random.uniform(0, 1)

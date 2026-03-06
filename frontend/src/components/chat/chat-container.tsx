@@ -9,7 +9,11 @@ import { ChatInput } from "./chat-input";
 import { Header } from "../layout/header";
 import { IDLECLAW_QUESTION, IDLECLAW_ANSWER } from "./welcome-screen";
 
-export function ChatContainer() {
+interface ChatContainerProps {
+  onLogoClick?: () => void;
+}
+
+export function ChatContainer({ onLogoClick }: ChatContainerProps) {
   const { state: healthState, nodeCount } = useHealth();
   const [models, setModels] = useState<string[]>([]);
   const [modelCapabilities, setModelCapabilities] = useState<Record<string, Record<string, boolean>>>({});
@@ -157,6 +161,7 @@ export function ChatContainer() {
         modelError={modelError}
         healthState={healthState}
         nodeCount={nodeCount}
+        onLogoClick={onLogoClick}
         onNewChat={messages.length > 0 ? handleNewChat : undefined}
         thinkingEnabled={thinkingEnabled}
         onThinkingChange={setThinkingEnabled}

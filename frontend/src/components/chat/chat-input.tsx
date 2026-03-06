@@ -31,7 +31,7 @@ export function ChatInput({ input, isLoading, disabled, focusTrigger, onInputCha
   }, [focusTrigger]);
 
   return (
-    <div className="border-t border-banner/20 bg-banner p-3 sm:p-4">
+    <div className="border-t border-banner/20 p-3 sm:p-4" style={{ background: "linear-gradient(to right, #2a1f19, #1a110c)" }}>
       <div className="mx-auto flex max-w-3xl items-end gap-2 sm:gap-3">
         <textarea
           ref={textareaRef}

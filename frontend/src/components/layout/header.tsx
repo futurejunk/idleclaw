@@ -11,14 +11,15 @@ interface HeaderProps {
   modelError: boolean;
   healthState: ConnectionState;
   nodeCount: number;
+  onLogoClick?: () => void;
   onNewChat?: () => void;
   thinkingEnabled: boolean;
   onThinkingChange: (enabled: boolean) => void;
 }
 
-export function Header({ models, modelCapabilities, selectedModel, onModelChange, modelError, healthState, nodeCount, onNewChat, thinkingEnabled, onThinkingChange }: HeaderProps) {
+export function Header({ models, modelCapabilities, selectedModel, onModelChange, modelError, healthState, nodeCount, onLogoClick, onNewChat, thinkingEnabled, onThinkingChange }: HeaderProps) {
   return (
-    <header className="border-b border-banner/20 bg-banner px-4 py-3 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-2">
+    <header className="border-b border-banner/20 px-4 py-3 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-2" style={{ background: "linear-gradient(to right, #2a1f19, #1a110c)" }}>
       <div className="flex items-center gap-2">
         {onNewChat && (
           <button
@@ -29,7 +30,12 @@ export function Header({ models, modelCapabilities, selectedModel, onModelChange
             <SquarePen size={18} />
           </button>
         )}
-        <h1 className="text-lg font-semibold font-heading text-brand">IdleClaw</h1>
+        <button
+          onClick={onLogoClick}
+          className="text-lg font-semibold font-heading text-transparent bg-clip-text bg-gradient-to-r from-brand to-brand-hover hover:from-brand-hover hover:to-brand transition-all cursor-pointer"
+        >
+          IdleClaw
+        </button>
       </div>
       <div className="flex items-center gap-3 sm:gap-4">
         <ModelSelector

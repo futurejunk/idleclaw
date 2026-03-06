@@ -22,14 +22,14 @@ interface WelcomeScreenProps {
 export function WelcomeScreen({ onSuggestionClick }: WelcomeScreenProps) {
   return (
     <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-      <h2 className="text-3xl font-semibold font-heading text-brand">IdleClaw</h2>
+      <h2 className="text-3xl font-semibold font-heading text-transparent bg-clip-text bg-gradient-to-r from-brand to-brand-hover">IdleClaw</h2>
       <p className="mt-2 text-sm text-muted">Free AI chat powered by community GPUs</p>
       <div className="mt-8 flex flex-col items-center gap-2 max-w-lg">
         {SUGGESTIONS.map((s) => (
           <button
             key={s}
             onClick={() => onSuggestionClick(s)}
-            className="rounded-[14px] border border-border-ui bg-accent-soft px-4 py-2 text-sm text-brand-hover hover:border-border-ui/80 hover:bg-brand/10 transition-colors"
+            className="rounded-[14px] border border-border-ui bg-gradient-to-r from-accent-soft to-brand/8 px-4 py-2 text-sm text-brand-hover hover:border-border-ui/80 hover:from-brand/10 hover:to-brand/15 transition-all"
           >
             {s}
           </button>

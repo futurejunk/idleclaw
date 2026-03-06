@@ -63,18 +63,30 @@ This skill contacts the following external endpoints:
 2. **Local Ollama** (`OLLAMA_HOST`, default `http://localhost:11434`)
    - **Contribute mode only**: Calls Ollama's API to list models and run inference. All communication stays on localhost.
 
-### Data Handling
+### Privacy & Trust Model
 
-- **No user data is persisted** locally or on the server beyond the active session.
-- **No credentials or API keys** are required or stored.
-- **Chat messages** are transmitted from consumer to server to contributor node for inference, then discarded.
-- **No telemetry or analytics** are collected.
+**Contribute mode risks:**
+- Running contribute mode allows **remote parties to execute arbitrary prompts** on your local Ollama models via the routing server.
+- Model outputs (including tool_call results and all response fields) are **streamed back to the routing server** and visible to the server operator and the requesting consumer.
+- There is **no authentication or access control** on who can send inference requests to your node — any consumer on the network can use your GPU.
+- **Do not run contribute mode on machines with sensitive data or private models.** Consider running in a container or VM for isolation.
+
+**Consume mode risks:**
+- Your prompts are sent to the routing server and forwarded to a community contributor's machine for inference. The contributor node operator can see your prompts.
+- **Do not send sensitive or private information** through community inference.
+
+**General:**
+- No user data is persisted locally or on the server beyond the active session.
+- No credentials or API keys are required or stored.
+- No telemetry or analytics are collected.
+- The default server (`api.idleclaw.com`) is operated by the project maintainers. You can point `IDLECLAW_SERVER` to a self-hosted server you control for greater trust.
 
 ### Input Sanitization
 
 - Model names are validated against a strict pattern (alphanumeric, colons, periods, hyphens only).
 - Server URLs are validated as HTTP/HTTPS URLs before use.
 - No shell commands are constructed from user input — all execution is Python-only.
+- No local files are read or accessed — the skill only communicates with Ollama and the routing server.
 
 ## Installation
 

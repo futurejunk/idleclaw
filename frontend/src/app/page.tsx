@@ -1,32 +1,18 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { LandingHero } from "@/components/landing/landing-hero";
 import { ChatContainer } from "@/components/chat/chat-container";
 
 export default function Home() {
-  const [showHero, setShowHero] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return sessionStorage.getItem("idleclaw:chatActive") !== "1";
-  });
-  const hasBeenDismissed = useRef(!showHero);
-
-  const handleDismiss = () => {
-    hasBeenDismissed.current = true;
-    sessionStorage.setItem("idleclaw:chatActive", "1");
-    setShowHero(false);
-  };
+  const [showHero, setShowHero] = useState(true);
 
   return (
     <>
-      <ChatContainer onLogoClick={() => {
-        sessionStorage.removeItem("idleclaw:chatActive");
-        setShowHero(true);
-      }} />
+      <ChatContainer onLogoClick={() => setShowHero(true)} />
       {showHero && (
         <LandingHero
-          onDismiss={handleDismiss}
-          entering={hasBeenDismissed.current}
+          onDismiss={() => setShowHero(false)}
         />
       )}
     </>

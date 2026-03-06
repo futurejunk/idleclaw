@@ -15,6 +15,35 @@ OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 _health_cache: dict[str, float | bool] = {"healthy": True, "checked_at": 0.0}
 HEALTH_CACHE_TTL = 5  # seconds
 
+ALLOWED_PARAMS = {"model", "messages", "stream", "think", "keep_alive", "options", "tools", "format"}
+MAX_MESSAGES = 50
+MAX_CONTENT_CHARS = 10_000
+
+
+def validate_params(params: dict, registered_models: list[str]) -> dict:
+    """Validate and sanitize ollama_params. Returns sanitized params or raises ValueError."""
+    # Whitelist allowed keys
+    sanitized = {k: v for k, v in params.items() if k in ALLOWED_PARAMS}
+    stripped = set(params.keys()) - ALLOWED_PARAMS
+    if stripped:
+        logger.warning("Stripped unknown params: %s", stripped)
+
+    # Verify model is registered
+    model = sanitized.get("model")
+    if not model or model not in registered_models:
+        raise ValueError(f"Model not registered: {model}")
+
+    # Enforce message limits
+    messages = sanitized.get("messages", [])
+    if len(messages) > MAX_MESSAGES:
+        raise ValueError(f"Too many messages: {len(messages)} (max {MAX_MESSAGES})")
+    for msg in messages:
+        content = msg.get("content", "")
+        if isinstance(content, str) and len(content) > MAX_CONTENT_CHARS:
+            raise ValueError(f"Message content too long: {len(content)} chars (max {MAX_CONTENT_CHARS})")
+
+    return sanitized
+
 
 async def get_ollama_version() -> str:
     """Get the Ollama server version string."""
@@ -88,11 +117,6 @@ async def stream_chat(params: dict):
                 if key == "tool_calls" and isinstance(val, list):
                     val = [tc.model_dump() if hasattr(tc, "model_dump") else tc for tc in val]
                 msg_dict[key] = val
-        # Preserve any unknown future fields from the message object
-        if isinstance(message, dict):
-            for key, val in message.items():
-                if key not in msg_dict and val is not None and val != "" and val != []:
-                    msg_dict[key] = val
         msg_dict.setdefault("role", "assistant")
         msg_dict.setdefault("content", "")
         yield {

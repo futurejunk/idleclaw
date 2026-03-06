@@ -85,6 +85,18 @@ class NodeConnection:
         request_id = msg["request_id"]
         ollama_params = msg["ollama_params"]
 
+        model_names = [m["name"] for m in self.models]
+        try:
+            ollama_params = ollama_bridge.validate_params(ollama_params, model_names)
+        except ValueError as e:
+            logger.warning("Invalid request %s: %s", request_id, e)
+            await self._ws.send(json.dumps({
+                "type": "inference_error",
+                "request_id": request_id,
+                "error": "invalid_request",
+            }))
+            return
+
         if not await ollama_bridge.check_health():
             logger.warning("Ollama unavailable for request %s", request_id)
             await self._ws.send(json.dumps({

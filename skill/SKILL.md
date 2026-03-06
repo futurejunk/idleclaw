@@ -76,6 +76,10 @@ This skill contacts the following external endpoints:
 ### Sanitization
 
 **Client-side:**
+- Inference parameters are validated before passing to Ollama: only whitelisted keys are forwarded (`model`, `messages`, `stream`, `think`, `keep_alive`, `options`, `tools`, `format`). Unknown keys are stripped.
+- Requested model must match a model the node registered — requests for unregistered models are rejected.
+- Message limits enforced: max 50 messages per request, max 10,000 characters per message content.
+- Only known response fields are forwarded back to the server (`role`, `content`, `thinking`, `tool_calls`).
 - Model names are validated against a strict pattern (alphanumeric, colons, periods, hyphens only).
 - Server URLs are validated as HTTP/HTTPS URLs before use.
 - No shell commands are constructed from user input — all execution is Python-only.
@@ -88,7 +92,7 @@ This skill contacts the following external endpoints:
 - Node registration limits: max 3 nodes per IP, max concurrent requests clamped to 1-10.
 - Tool execution safeguards: schema validation, argument type checking, 15-second timeout, per-node rate limiting (20 calls/min).
 - Server binds to localhost only, accessed through Caddy reverse proxy with auto-TLS.
-- Red team tested with documented findings and mitigations ([security assessment on GitHub](https://github.com/futurejunk/idleclaw/tree/main/security)).
+- Red team tested with documented findings and mitigations ([security assessment on GitHub](https://github.com/futurejunk/idleclaw/blob/main/security/SECURITY.md)).
 
 ## Installation
 

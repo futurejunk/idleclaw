@@ -31,8 +31,9 @@ docs/
 # Promo assets
 promo-assets/
 
-# Security (red team PoCs)
-security/
+# Security (red team PoCs stay private, public summary tracked)
+security/red-team/
+!security/SECURITY.md
 
 # OpenSpec
 openspec/

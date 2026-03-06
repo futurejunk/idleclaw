@@ -22,6 +22,35 @@ HEARTBEAT_INTERVAL = 15
 BASE_DELAY = 1
 MAX_DELAY = 60
 
+ALLOWED_PARAMS = {"model", "messages", "stream", "think", "keep_alive", "options", "tools", "format"}
+MAX_MESSAGES = 50
+MAX_CONTENT_CHARS = 10_000
+
+
+def validate_params(params: dict, registered_models: list[str]) -> dict:
+    """Validate and sanitize ollama_params. Returns sanitized params or raises ValueError."""
+    # Whitelist allowed keys
+    sanitized = {k: v for k, v in params.items() if k in ALLOWED_PARAMS}
+    stripped = set(params.keys()) - ALLOWED_PARAMS
+    if stripped:
+        logger.warning("Stripped unknown params: %s", stripped)
+
+    # Verify model is registered
+    model = sanitized.get("model")
+    if not model or model not in registered_models:
+        raise ValueError(f"Model not registered: {model}")
+
+    # Enforce message limits
+    messages = sanitized.get("messages", [])
+    if len(messages) > MAX_MESSAGES:
+        raise ValueError(f"Too many messages: {len(messages)} (max {MAX_MESSAGES})")
+    for msg in messages:
+        content = msg.get("content", "")
+        if isinstance(content, str) and len(content) > MAX_CONTENT_CHARS:
+            raise ValueError(f"Message content too long: {len(content)} chars (max {MAX_CONTENT_CHARS})")
+
+    return sanitized
+
 _health_cache: dict[str, float | bool] = {"healthy": True, "checked_at": 0.0}
 HEALTH_CACHE_TTL = 5  # seconds
 
@@ -103,11 +132,6 @@ async def stream_inference(params: dict):
                 if key == "tool_calls" and isinstance(val, list):
                     val = [tc.model_dump() if hasattr(tc, "model_dump") else tc for tc in val]
                 msg_dict[key] = val
-        # Preserve any unknown future fields from the message object
-        if isinstance(message, dict):
-            for key, val in message.items():
-                if key not in msg_dict and val is not None and val != "" and val != []:
-                    msg_dict[key] = val
         msg_dict.setdefault("role", "assistant")
         msg_dict.setdefault("content", "")
         yield {
@@ -160,6 +184,17 @@ async def run_node(server_url: str, models: list[dict], ollama_version: str) -> 
         nonlocal active_requests
         request_id = req["request_id"]
         ollama_params = req["ollama_params"]
+
+        try:
+            ollama_params = validate_params(ollama_params, model_names)
+        except ValueError as e:
+            logger.warning("Invalid request %s: %s", request_id[:8], e)
+            await ws.send(json.dumps({
+                "type": "inference_error",
+                "request_id": request_id,
+                "error": "invalid_request",
+            }))
+            return
 
         if not await check_health():
             logger.warning("Ollama unavailable for request %s", request_id[:8])

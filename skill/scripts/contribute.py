@@ -28,27 +28,18 @@ MAX_CONTENT_CHARS = 10_000
 
 
 def validate_params(params: dict, registered_models: list[str]) -> dict:
-    """Validate and sanitize ollama_params. Returns sanitized params or raises ValueError."""
-    # Whitelist allowed keys
+    """Validate ollama_params: whitelist keys, check model, enforce limits."""
     sanitized = {k: v for k, v in params.items() if k in ALLOWED_PARAMS}
-    stripped = set(params.keys()) - ALLOWED_PARAMS
-    if stripped:
-        logger.warning("Stripped unknown params: %s", stripped)
-
-    # Verify model is registered
     model = sanitized.get("model")
     if not model or model not in registered_models:
         raise ValueError(f"Model not registered: {model}")
-
-    # Enforce message limits
     messages = sanitized.get("messages", [])
     if len(messages) > MAX_MESSAGES:
-        raise ValueError(f"Too many messages: {len(messages)} (max {MAX_MESSAGES})")
+        raise ValueError(f"Too many messages: {len(messages)}")
     for msg in messages:
         content = msg.get("content", "")
         if isinstance(content, str) and len(content) > MAX_CONTENT_CHARS:
-            raise ValueError(f"Message content too long: {len(content)} chars (max {MAX_CONTENT_CHARS})")
-
+            raise ValueError(f"Message too long: {len(content)} chars")
     return sanitized
 
 _health_cache: dict[str, float | bool] = {"healthy": True, "checked_at": 0.0}
@@ -71,73 +62,51 @@ async def check_health() -> bool:
 
 
 async def get_ollama_version() -> str:
-    """Get the Ollama server version string."""
     try:
         import httpx
         async with httpx.AsyncClient() as client:
             resp = await client.get(f"{OLLAMA_HOST}/api/version")
-            if resp.status_code == 200:
-                return resp.json().get("version", "unknown")
+            return resp.json().get("version", "unknown") if resp.status_code == 200 else "unknown"
     except Exception:
-        pass
-    return "unknown"
+        return "unknown"
 
 
 async def check_ollama() -> list[dict]:
-    """Check Ollama is running and return available models."""
     try:
         client = AsyncClient(host=OLLAMA_HOST)
         response = await client.list()
-        return [
-            {
-                "name": m.model,
-                "size": m.size,
-            }
-            for m in response.models
-        ]
+        return [{"name": m.model, "size": m.size} for m in response.models]
     except Exception as e:
         print(f"Error: Cannot connect to Ollama at {OLLAMA_HOST} ({e})", file=sys.stderr)
-        print("Start Ollama (ollama serve) and pull a model (ollama pull llama3.2:3b).", file=sys.stderr)
         sys.exit(1)
 
 
 async def warmup_models(models: list[dict]) -> None:
-    """Pre-load all models into memory with keep_alive=-1 to prevent unloading."""
     client = AsyncClient(host=OLLAMA_HOST)
     for m in models:
-        name = m["name"]
         try:
-            await client.chat(
-                model=name,
-                messages=[{"role": "user", "content": "hi"}],
-                keep_alive=-1,
-            )
-            logger.info("Warmed up model: %s", name)
+            await client.chat(model=m["name"], messages=[{"role": "user", "content": "hi"}], keep_alive=-1)
+            logger.info("Warmed up model: %s", m["name"])
         except Exception as e:
-            logger.warning("Failed to warm up %s: %s", name, e)
+            logger.warning("Failed to warm up %s: %s", m["name"], e)
 
 
 async def stream_inference(params: dict):
-    """Stream raw Ollama chunks as plain dicts. Passes params directly to client.chat()."""
+    """Stream Ollama response chunks as dicts. Node is a relay — no local tool execution."""
     client = AsyncClient(host=OLLAMA_HOST)
     stream = await client.chat(**params)
     async for chunk in stream:
         message = chunk.get("message", {})
-        # Convert Ollama Message object to a plain dict, preserving all fields
         msg_dict: dict = {}
         for key in ("role", "content", "thinking", "tool_calls"):
             val = message.get(key) if isinstance(message, dict) else getattr(message, key, None)
             if val is not None and val != "" and val != []:
-                # Convert Pydantic objects (e.g. ToolCall) to plain dicts for JSON serialization
                 if key == "tool_calls" and isinstance(val, list):
                     val = [tc.model_dump() if hasattr(tc, "model_dump") else tc for tc in val]
                 msg_dict[key] = val
         msg_dict.setdefault("role", "assistant")
         msg_dict.setdefault("content", "")
-        yield {
-            "message": msg_dict,
-            "done": chunk.get("done", False),
-        }
+        yield {"message": msg_dict, "done": chunk.get("done", False)}
 
 
 async def run_node(server_url: str, models: list[dict], ollama_version: str) -> None:

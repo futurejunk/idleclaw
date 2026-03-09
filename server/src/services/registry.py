@@ -53,6 +53,13 @@ class NodeRegistry:
     def get_node(self, node_id: str) -> NodeInfo | None:
         return self._nodes.get(node_id)
 
+    def find_by_ip_and_models(self, ip: str, model_names: set[str]) -> NodeInfo | None:
+        """Find an existing node with the same IP and same set of models."""
+        for node in self._nodes.values():
+            if node.ip == ip and {m.name for m in node.models} == model_names:
+                return node
+        return None
+
     @property
     def node_count(self) -> int:
         return len(self._nodes)

@@ -35,5 +35,8 @@ promo-assets/
 security/red-team/
 !security/SECURITY.md
 
+# Server runtime data
+server/data/stats.json
+
 # OpenSpec
 openspec/

@@ -90,6 +90,7 @@ _PATH_LIMITS: list[tuple[str, str, str]] = [
     ("/api/models", "default", "rate_limit_default_rpm"),
     ("/health", "default", "rate_limit_default_rpm"),
     ("/metrics", "default", "rate_limit_default_rpm"),
+    ("/admin", "default", "rate_limit_default_rpm"),
 ]
 
 

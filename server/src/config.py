@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     searxng_url: str = ""
     tool_rate_limit_rpm: int = 20  # max tool calls per minute per node
 
+    # Admin
+    admin_token: str = ""
+
+    # Persistent metrics
+    stats_file: str = "data/stats.json"
+
     # Graceful shutdown
     shutdown_drain_timeout: int = 30
 

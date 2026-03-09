@@ -47,6 +47,7 @@ class NodeInfo:
         self.max_concurrent = max_concurrent
         self.ip = ip
         self.ollama_version = ollama_version
+        self.connected_at = time.time()
         self.last_heartbeat = time.time()
         self.active_requests = 0
 

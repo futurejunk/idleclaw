@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from server.src.config import settings
 from server.src.middleware.rate_limiter import RateLimitMiddleware, rate_limiter
-from server.src.routers import chat, health, metrics, nodes
+from server.src.routers import admin, chat, health, metrics, nodes
 from server.src.services.registry import NodeRegistry
 from server.src.services.stats import ServerStats
 from server.src.services.tool_registry import tool_registry
@@ -45,6 +45,11 @@ def setup_logging() -> None:
         handler.setFormatter(logging.Formatter("%(asctime)s [%(name)s] %(levelname)s %(message)s"))
     root.handlers = [handler]
 
+    # In production, suppress uvicorn's access logger — Caddy handles access logging
+    # and the plain-text access log lines drown out structured app logs in journald
+    if settings.environment == "production":
+        logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
 
 setup_logging()
 
@@ -73,6 +78,8 @@ async def _ping_loop() -> None:
 async def lifespan(app: FastAPI):
     tool_registry.freeze()
     health.set_start_time(time.time())
+    stats.load(settings.stats_file)
+    stats.start_persistence(settings.stats_file)
     registry.start_eviction()
     rate_limiter.start_cleanup()
     ping_task = asyncio.create_task(_ping_loop())
@@ -98,6 +105,8 @@ async def lifespan(app: FastAPI):
         await ping_task
     except asyncio.CancelledError:
         pass
+    await stats.stop_persistence()
+    stats.save(settings.stats_file)
     await rate_limiter.stop_cleanup()
     await registry.stop_eviction()
 
@@ -124,6 +133,7 @@ app.include_router(health.router)
 app.include_router(metrics.router)
 app.include_router(chat.router)
 app.include_router(nodes.router)
+app.include_router(admin.router)
 
 
 @app.websocket("/ws/node")

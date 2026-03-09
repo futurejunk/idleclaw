@@ -69,6 +69,21 @@ async def node_websocket(
             except Exception:
                 pass
 
+        # Handle duplicate by IP+models: a restarted node-agent generates a new UUID
+        # but connects from the same IP with the same model set
+        incoming_model_names = {m.get("name", "") for m in raw_models}
+        duplicate = registry.find_by_ip_and_models(client_ip, incoming_model_names)
+        if duplicate:
+            logger.info(
+                "Duplicate node detected by IP+models, replacing old node",
+                extra={"old_node_id": duplicate.node_id, "new_node_id": node_id, "ip": client_ip},
+            )
+            registry.remove_node(duplicate.node_id)
+            try:
+                await duplicate.websocket.close(code=1000, reason="re-registered")
+            except Exception:
+                pass
+
         # Enforce per-IP node limit
         if not registry.check_ip_limit(client_ip, settings.max_nodes_per_ip):
             await websocket.close(code=1008, reason="too many nodes from this IP")

@@ -1,7 +1,10 @@
-import { isValidElement, type ReactNode } from "react";
+"use client";
+
+import { isValidElement, useState, type ReactNode } from "react";
 import type { UIMessage } from "ai";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Copy, Check, RefreshCw } from "lucide-react";
 import { CodeBlock } from "./code-block";
 
 function extractCodeFromPre(children: ReactNode): { code: string; language?: string } | null {
@@ -47,8 +50,15 @@ const markdownComponents = {
   },
 };
 
-export function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreaming?: boolean }) {
+interface MessageBubbleProps {
+  message: UIMessage;
+  isStreaming?: boolean;
+  onRegenerate?: () => void;
+}
+
+export function MessageBubble({ message, isStreaming, onRegenerate }: MessageBubbleProps) {
   const isUser = message.role === "user";
+  const [copied, setCopied] = useState(false);
 
   const reasoningText = message.parts
     .filter((p): p is { type: "reasoning"; text: string } => p.type === "reasoning")
@@ -68,38 +78,68 @@ export function MessageBubble({ message, isStreaming }: { message: UIMessage; is
   // Don't render empty assistant bubble (SDK creates it before tokens arrive)
   if (!isUser && !hasReasoning && !hasContent) return null;
 
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`max-w-[90%] sm:max-w-[80%] rounded-[20px] px-4 py-2.5 text-sm leading-relaxed ${
-          isUser
-            ? "bg-gradient-to-br from-brand to-brand-hover text-white"
-            : "bg-surface text-foreground shadow-sm"
-        }`}
-      >
-        {isUser ? (
-          <p className="whitespace-pre-wrap">{text}</p>
-        ) : (
-          <>
-            {hasReasoning && (
-              <details open={isThinking} className="mb-2">
-                <summary className="cursor-pointer text-xs text-muted select-none hover:text-foreground/70 transition-colors">
-                  {isThinking ? "Thinking..." : "Thought process"}
-                </summary>
-                <div className="mt-1.5 text-xs italic text-muted/80 leading-relaxed border-l-2 border-border-ui pl-3">
-                  {reasoningText}
-                </div>
-              </details>
-            )}
-            <div className="prose prose-sm max-w-none">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={markdownComponents}
+    <div className={`group flex ${isUser ? "justify-end" : "justify-start"}`}>
+      <div className="max-w-[90%] sm:max-w-[80%]">
+        <div
+          className={`rounded-[20px] px-4 py-2.5 text-sm leading-relaxed ${
+            isUser
+              ? "bg-gradient-to-br from-brand to-brand-hover text-white"
+              : "bg-surface text-foreground shadow-sm"
+          }`}
+        >
+          {isUser ? (
+            <p className="whitespace-pre-wrap">{text}</p>
+          ) : (
+            <>
+              {hasReasoning && (
+                <details open={isThinking} className="mb-2">
+                  <summary className="cursor-pointer text-xs text-muted select-none hover:text-foreground/70 transition-colors">
+                    {isThinking ? "Thinking..." : "Thought process"}
+                  </summary>
+                  <div className="mt-1.5 text-xs italic text-muted/80 leading-relaxed border-l-2 border-border-ui pl-3">
+                    {reasoningText}
+                  </div>
+                </details>
+              )}
+              <div className="prose prose-sm max-w-none">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={markdownComponents}
+                >
+                  {text}
+                </ReactMarkdown>
+              </div>
+            </>
+          )}
+        </div>
+        {!isUser && !isStreaming && hasContent && (
+          <div className="mt-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted hover:text-foreground hover:bg-surface transition-colors"
+              aria-label={copied ? "Copied" : "Copy message"}
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+              {copied ? "Copied" : "Copy"}
+            </button>
+            {onRegenerate && (
+              <button
+                onClick={onRegenerate}
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted hover:text-foreground hover:bg-surface transition-colors"
+                aria-label="Regenerate response"
               >
-                {text}
-              </ReactMarkdown>
-            </div>
-          </>
+                <RefreshCw size={14} />
+                Regenerate
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

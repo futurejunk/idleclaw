@@ -11,9 +11,10 @@ interface MessageListProps {
   isLoading: boolean;
   chatError: string | null;
   onSuggestionClick: (text: string) => void;
+  onRegenerate?: () => void;
 }
 
-export function MessageList({ messages, isLoading, chatError, onSuggestionClick }: MessageListProps) {
+export function MessageList({ messages, isLoading, chatError, onSuggestionClick, onRegenerate }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
@@ -58,6 +59,11 @@ export function MessageList({ messages, isLoading, chatError, onSuggestionClick 
           key={message.id}
           message={message}
           isStreaming={isLoading && i === messages.length - 1 && message.role === "assistant"}
+          onRegenerate={
+            message.role === "assistant" && i === messages.length - 1 && !isLoading
+              ? onRegenerate
+              : undefined
+          }
         />
       ))}
       {showTyping && <TypingIndicator />}

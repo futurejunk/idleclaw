@@ -76,7 +76,7 @@ export function ChatContainer({ onLogoClick }: ChatContainerProps) {
   const [fakeStreaming, setFakeStreaming] = useState(false);
   const fakeStreamIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { messages, setMessages, sendMessage, stop, status } = useChat({
+  const { messages, setMessages, sendMessage, regenerate, stop, status } = useChat({
     transport,
     onError: (error) => {
       if (error.message?.includes("503")) {
@@ -183,6 +183,7 @@ export function ChatContainer({ onLogoClick }: ChatContainerProps) {
           isLoading={isLoading}
           chatError={chatError}
           onSuggestionClick={handleSend}
+          onRegenerate={regenerate}
         />
         <ChatInput
           input={input}

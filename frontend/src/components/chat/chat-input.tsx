@@ -40,7 +40,7 @@ export function ChatInput({ input, isLoading, disabled, focusTrigger, onInputCha
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              onSend();
+              if (input.trim()) onSend();
             }
           }}
           placeholder="Send a message..."

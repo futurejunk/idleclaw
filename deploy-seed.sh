@@ -51,7 +51,8 @@ done
 REMOTE_CMD+=' && sudo systemctl restart idleclaw-node'
 
 echo "Running on ${HOST}..."
-ssh "ubuntu@${HOST}" "${REMOTE_CMD}"
+# SSH key lives at ~/.ssh/idleclaw-server-ssh.pem (same as deploy.sh)
+ssh -i ~/.ssh/idleclaw-server-ssh.pem "ubuntu@${HOST}" "${REMOTE_CMD}"
 
 echo ""
 echo "=== Deploy complete ==="

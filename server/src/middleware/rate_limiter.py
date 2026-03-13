@@ -117,6 +117,9 @@ def _get_client_ip(scope: Scope) -> str:
 
 rate_limiter = RateLimiter()
 
+# Concurrent chat request tracking per IP
+_active_chat: dict[str, int] = {}
+
 
 class RateLimitMiddleware:
     """ASGI middleware that enforces per-IP rate limits."""
@@ -142,7 +145,6 @@ class RateLimitMiddleware:
         if not allowed:
             logger.warning("Rate limit exceeded", extra={"ip": ip, "path": path, "retry_after": round(retry_after, 1)})
             if scope["type"] == "websocket":
-                # For WebSocket, send an HTTP 429 before upgrade
                 response = Response(
                     content=json.dumps({"detail": "Too many requests"}),
                     status_code=429,
@@ -160,4 +162,26 @@ class RateLimitMiddleware:
                 await response(scope, receive, send)
             return
 
-        await self.app(scope, receive, send)
+        # Concurrent chat request limit per IP
+        is_chat = path == "/api/chat" or path.startswith("/api/chat/")
+        if is_chat:
+            active = _active_chat.get(ip, 0)
+            if active >= settings.max_concurrent_chat_per_ip:
+                logger.warning("Concurrent chat limit exceeded", extra={"ip": ip, "active": active})
+                response = Response(
+                    content=json.dumps({"detail": "Too many concurrent requests"}),
+                    status_code=429,
+                    media_type="application/json",
+                    headers={"Retry-After": "5"},
+                )
+                await response(scope, receive, send)
+                return
+            _active_chat[ip] = active + 1
+
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            if is_chat:
+                _active_chat[ip] = max(0, _active_chat.get(ip, 1) - 1)
+                if _active_chat.get(ip, 0) == 0:
+                    _active_chat.pop(ip, None)

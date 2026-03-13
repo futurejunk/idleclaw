@@ -60,6 +60,12 @@ class NodeRegistry:
                 return node
         return None
 
+    def adjust_reputation(self, node_id: str, delta: float) -> None:
+        """Adjust a node's reputation score, clamped between 0.0 and 1.0."""
+        node = self._nodes.get(node_id)
+        if node:
+            node.reputation = max(0.0, min(1.0, node.reputation + delta))
+
     @property
     def node_count(self) -> int:
         return len(self._nodes)

@@ -32,6 +32,24 @@ class Settings(BaseSettings):
     # Persistent metrics
     stats_file: str = "data/stats.json"
 
+    # Content filtering (regex patterns)
+    inbound_blocklist: list[str] = [
+        r"<script[\s>]",
+        r"javascript:",
+        r"data:text/html",
+    ]
+    outbound_blocklist: list[str] = [
+        r"<script[\s>]",
+        r"javascript:",
+        r"data:text/html",
+    ]
+
+    # Node probing
+    probe_interval_seconds: int = 300
+
+    # Concurrent chat limits
+    max_concurrent_chat_per_ip: int = 3
+
     # Graceful shutdown
     shutdown_drain_timeout: int = 30
 

@@ -7,6 +7,14 @@ from server.src.config import settings
 router = APIRouter()
 
 
+def _mask_ip(ip: str) -> str:
+    """Mask IP to show only first two octets: 192.168.1.50 -> 192.168.x.x"""
+    parts = ip.split(".")
+    if len(parts) == 4:
+        return f"{parts[0]}.{parts[1]}.x.x"
+    return ip  # non-IPv4, return as-is
+
+
 def _check_admin_token(request: Request) -> None:
     if not settings.admin_token:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -26,7 +34,7 @@ async def admin_nodes(request: Request):
     for node in registry.all_nodes():
         nodes.append({
             "node_id": node.node_id,
-            "ip": node.ip,
+            "ip": _mask_ip(node.ip),
             "models": [m.name for m in node.models],
             "connected_seconds": round(now - node.connected_at),
             "active_requests": node.active_requests,

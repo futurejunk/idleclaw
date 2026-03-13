@@ -16,18 +16,34 @@ from server.src.services.router import RequestRouter
 from server.src.services.tool_execution import execute_tool_calls
 from server.src.services.tool_parser import ContentTagStripper, parse_tool_calls, strip_tool_tags
 from server.src.services.tool_registry import tool_registry
+from server.src.services.content_filter import ContentFilter
+from server.src.config import settings
 
 logger = logging.getLogger(__name__)
+
+content_filter = ContentFilter(settings.inbound_blocklist, settings.outbound_blocklist)
 
 router = APIRouter()
 
 REQUEST_TIMEOUT = 60  # seconds
 MAX_TOOL_ROUNDS = 5
+MAX_TOTAL_PAYLOAD_CHARS = 100_000
 
 
 @router.post("/api/chat")
 async def chat(request: ChatRequest):
     from server.src.main import registry, request_queues, request_node_map, stats
+
+    # Payload size validation
+    total_chars = sum(len(m.content) for m in request.messages)
+    if total_chars > MAX_TOTAL_PAYLOAD_CHARS:
+        raise HTTPException(status_code=422, detail=f"Total payload too large: {total_chars} chars (max {MAX_TOTAL_PAYLOAD_CHARS})")
+
+    # Content filter: check inbound messages
+    messages_raw = [{"role": m.role, "content": m.content} for m in request.messages]
+    blocked_pattern = content_filter.check_inbound(messages_raw)
+    if blocked_pattern:
+        raise HTTPException(status_code=400, detail="Message content not allowed")
 
     # Find the best node for the requested model
     node = RequestRouter.select_node(registry, request.model)
@@ -75,6 +91,7 @@ async def chat(request: ChatRequest):
                         msg = await asyncio.wait_for(queue.get(), timeout=REQUEST_TIMEOUT)
                     except asyncio.TimeoutError:
                         request_error = "timeout"
+                        registry.adjust_reputation(node.node_id, -0.05)
                         error_chunk = {
                             "id": chat_id,
                             "object": "chat.completion.chunk",
@@ -87,6 +104,7 @@ async def chat(request: ChatRequest):
 
                     if msg["type"] == "inference_error":
                         request_error = msg.get("error", "unknown")
+                        registry.adjust_reputation(node.node_id, -0.05)
                         error_chunk = {
                             "id": chat_id,
                             "object": "chat.completion.chunk",
@@ -131,6 +149,7 @@ async def chat(request: ChatRequest):
                         if content:
                             accumulated_content += content
                             display_content = tag_stripper.feed(content)
+                            display_content = content_filter.filter_outbound(display_content)
                             if display_content:
                                 delta = {"content": display_content}
                                 chunk = {

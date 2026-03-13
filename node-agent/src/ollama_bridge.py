@@ -16,6 +16,7 @@ _health_cache: dict[str, float | bool] = {"healthy": True, "checked_at": 0.0}
 HEALTH_CACHE_TTL = 5  # seconds
 
 ALLOWED_PARAMS = {"model", "messages", "stream", "think", "keep_alive", "options", "tools", "format"}
+VALID_ROLES = {"user", "assistant", "system", "tool"}
 MAX_MESSAGES = 50
 MAX_CONTENT_CHARS = 10_000
 
@@ -35,9 +36,16 @@ def validate_params(params: dict, registered_models: list[str]) -> dict:
 
     # Enforce message limits
     messages = sanitized.get("messages", [])
+    if not isinstance(messages, list):
+        raise ValueError("Messages must be a list")
     if len(messages) > MAX_MESSAGES:
         raise ValueError(f"Too many messages: {len(messages)} (max {MAX_MESSAGES})")
     for msg in messages:
+        # Validate role
+        role = msg.get("role", "")
+        if role not in VALID_ROLES:
+            raise ValueError(f"Invalid message role: {role}")
+        # Validate content length
         content = msg.get("content", "")
         if isinstance(content, str) and len(content) > MAX_CONTENT_CHARS:
             raise ValueError(f"Message content too long: {len(content)} chars (max {MAX_CONTENT_CHARS})")

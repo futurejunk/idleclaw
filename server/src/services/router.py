@@ -9,13 +9,16 @@ from server.src.services.registry import NodeRegistry
 class RequestRouter:
     """Scoring-based node selection for inference routing."""
 
-    LOAD_WEIGHT = 0.7
-    AVAILABILITY_WEIGHT = 0.3
+    LOAD_WEIGHT = 0.5
+    REPUTATION_WEIGHT = 0.3
+    AVAILABILITY_WEIGHT = 0.2
 
     @staticmethod
     def select_node(registry: NodeRegistry, model: str) -> NodeInfo | None:
-        """Select the best node for the given model using load-based scoring.
+        """Select the best node for the given model using weighted scoring.
 
+        Factors: load (50%), reputation (30%), availability (20%).
+        Nodes with reputation 0.0 are excluded entirely.
         Returns None if no suitable node is available or server is shutting down.
         """
         if registry.shutting_down:
@@ -28,10 +31,16 @@ class RequestRouter:
                 continue
             if node.active_requests >= node.max_concurrent:
                 continue
+            if node.reputation == 0.0:
+                continue
 
             load_ratio = node.active_requests / node.max_concurrent if node.max_concurrent > 0 else 1.0
             availability_bonus = 1.0 if node.active_requests < node.max_concurrent else 0.0
-            score = (1 - load_ratio) * RequestRouter.LOAD_WEIGHT + availability_bonus * RequestRouter.AVAILABILITY_WEIGHT
+            score = (
+                (1 - load_ratio) * RequestRouter.LOAD_WEIGHT
+                + node.reputation * RequestRouter.REPUTATION_WEIGHT
+                + availability_bonus * RequestRouter.AVAILABILITY_WEIGHT
+            )
             candidates.append((score, node))
 
         if not candidates:

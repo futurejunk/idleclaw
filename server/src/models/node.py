@@ -50,6 +50,7 @@ class NodeInfo:
         self.connected_at = time.time()
         self.last_heartbeat = time.time()
         self.active_requests = 0
+        self.reputation: float = 0.5
 
     def has_model(self, model_name: str) -> bool:
         return any(m.name == model_name for m in self.models)

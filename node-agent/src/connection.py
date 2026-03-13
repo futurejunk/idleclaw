@@ -12,6 +12,9 @@ from src import ollama_bridge
 logger = logging.getLogger(__name__)
 
 HEARTBEAT_INTERVAL = 15  # seconds
+MAX_CHUNK_BYTES = 100_000  # 100KB
+ALLOWED_CHUNK_FIELDS = {"message", "done", "done_reason"}
+ALLOWED_MESSAGE_FIELDS = {"role", "content", "thinking", "tool_calls"}
 
 
 class NodeConnection:
@@ -111,14 +114,25 @@ class NodeConnection:
 
         try:
             async for chunk in ollama_bridge.stream_chat(ollama_params):
-                await self._ws.send(json.dumps({
+                # Sanitize chunk: only keep allowed fields
+                message = chunk.get("message", {})
+                sanitized_message = {k: v for k, v in message.items() if k in ALLOWED_MESSAGE_FIELDS}
+                sanitized_chunk = {
+                    "message": sanitized_message,
+                    "done": chunk.get("done", False),
+                }
+                if "done_reason" in chunk:
+                    sanitized_chunk["done_reason"] = chunk["done_reason"]
+                # Reject oversized chunks
+                payload = json.dumps({
                     "type": "inference_chunk",
                     "request_id": request_id,
-                    "chunk": {
-                        "message": chunk.get("message", {}),
-                        "done": chunk.get("done", False),
-                    },
-                }))
+                    "chunk": sanitized_chunk,
+                })
+                if len(payload.encode()) > MAX_CHUNK_BYTES:
+                    logger.warning("Dropping oversized chunk (%d bytes) for %s", len(payload.encode()), request_id)
+                    continue
+                await self._ws.send(payload)
             logger.info("Inference complete: %s", request_id)
 
         except asyncio.CancelledError:

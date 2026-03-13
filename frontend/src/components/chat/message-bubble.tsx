@@ -36,6 +36,10 @@ const markdownComponents = {
     );
   },
   a({ children, href, ...props }: { children?: ReactNode; href?: string }) {
+    const isSafeHref = href && /^https?:/i.test(href);
+    if (!isSafeHref) {
+      return <span>{children}</span>;
+    }
     return (
       <a
         href={href}

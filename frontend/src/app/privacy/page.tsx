@@ -41,12 +41,35 @@ export default function PrivacyPage() {
           </div>
 
           <div>
+            <h2 className="font-semibold text-foreground">What the server logs</h2>
+            <p className="mt-1 text-muted">
+              The server logs request metadata for operational purposes: which model was requested,
+              timing information, and node ID. Message content is never logged. Rate limiting uses
+              IP addresses, which are held in memory only for the duration of the rate limit window
+              and are not persisted to disk.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="font-semibold text-foreground">Contributor data visibility</h2>
+            <p className="mt-1 text-muted">
+              Contributors&apos; IP addresses are visible to the server operator but are masked in
+              any admin interfaces (only the first two octets are shown). Contributors are not
+              visible to other users or to each other. The server does not expose contributor
+              identity information through any public API.
+            </p>
+          </div>
+
+          <div>
             <h2 className="font-semibold text-foreground">Community contributor routing</h2>
             <p className="mt-1 text-muted">
               Your prompts are processed on machines operated by community volunteers. These
-              contributors share their GPU compute to power the network. While prompts pass through
-              their machines for inference, contributors do not have access to a conversation history
-              or user identity — each request is stateless.
+              contributors share their GPU compute to power the network.{" "}
+              <strong className="text-foreground">
+                Node operators can see the full text of your prompts and the model&apos;s responses
+              </strong>{" "}
+              as they are processed on their hardware. Contributors do not have access to a
+              conversation history or user identity — each request is stateless.
             </p>
           </div>
 
@@ -82,9 +105,10 @@ export default function PrivacyPage() {
                 nodes are not audited.
               </li>
               <li>
-                <strong className="text-foreground">No content moderation.</strong> There is no
-                server-side filtering of prompts or responses. Models have their own built-in safety
-                tuning, but IdleClaw does not add an additional moderation layer.
+                <strong className="text-foreground">Basic content filtering.</strong> The server
+                applies pattern-based filtering to block obviously harmful content in prompts and
+                responses, but this is not comprehensive content moderation. Models also have their
+                own built-in safety tuning.
               </li>
               <li>
                 <strong className="text-foreground">No authentication.</strong> There are no user

@@ -31,6 +31,15 @@ def build_ollama_params(
 
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
 
+    # Conversation history cap: keep system prompt + last 20 messages
+    MAX_HISTORY = 20
+    if len(messages) > MAX_HISTORY:
+        # Preserve system message if present
+        if messages and messages[0].get("role") == "system":
+            messages = [messages[0]] + messages[-(MAX_HISTORY):]
+        else:
+            messages = messages[-(MAX_HISTORY):]
+
     # Build composite system prompt: identity + date + thinking hint + tools + user system msg
     system_parts = [_build_system_prompt()]
 

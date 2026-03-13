@@ -13,6 +13,7 @@ from server.src.middleware.rate_limiter import RateLimitMiddleware, rate_limiter
 from server.src.routers import admin, chat, health, metrics, nodes
 from server.src.services.registry import NodeRegistry
 from server.src.services.stats import ServerStats
+from server.src.services.node_prober import probe_loop
 from server.src.services.tool_registry import tool_registry
 from server.src.ws.node_handler import node_websocket
 
@@ -83,6 +84,9 @@ async def lifespan(app: FastAPI):
     registry.start_eviction()
     rate_limiter.start_cleanup()
     ping_task = asyncio.create_task(_ping_loop())
+    probe_task = asyncio.create_task(
+        probe_loop(registry, request_queues, request_node_map, settings.probe_interval_seconds)
+    )
     yield
 
     # Graceful shutdown: stop accepting new requests
@@ -100,6 +104,11 @@ async def lifespan(app: FastAPI):
         logger.warning("Drain timeout: %d requests still in flight", len(request_queues))
 
     # Cancel background tasks
+    probe_task.cancel()
+    try:
+        await probe_task
+    except asyncio.CancelledError:
+        pass
     ping_task.cancel()
     try:
         await ping_task

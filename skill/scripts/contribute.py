@@ -23,8 +23,11 @@ BASE_DELAY = 1
 MAX_DELAY = 60
 
 ALLOWED_PARAMS = {"model", "messages", "stream", "think", "keep_alive", "options", "tools", "format"}
+VALID_ROLES = {"user", "assistant", "system", "tool"}
 MAX_MESSAGES = 50
 MAX_CONTENT_CHARS = 10_000
+ALLOWED_MESSAGE_FIELDS = {"role", "content", "thinking", "tool_calls"}
+MAX_CHUNK_BYTES = 100_000
 
 
 def validate_params(params: dict, registered_models: list[str]) -> dict:
@@ -37,6 +40,9 @@ def validate_params(params: dict, registered_models: list[str]) -> dict:
     if len(messages) > MAX_MESSAGES:
         raise ValueError(f"Too many messages: {len(messages)}")
     for msg in messages:
+        role = msg.get("role", "")
+        if role not in VALID_ROLES:
+            raise ValueError(f"Invalid role: {role}")
         content = msg.get("content", "")
         if isinstance(content, str) and len(content) > MAX_CONTENT_CHARS:
             raise ValueError(f"Message too long: {len(content)} chars")
@@ -97,8 +103,9 @@ async def stream_inference(params: dict):
     stream = await client.chat(**params)
     async for chunk in stream:
         message = chunk.get("message", {})
+        # Sanitize: only keep allowed message fields
         msg_dict: dict = {}
-        for key in ("role", "content", "thinking", "tool_calls"):
+        for key in ALLOWED_MESSAGE_FIELDS:
             val = message.get(key) if isinstance(message, dict) else getattr(message, key, None)
             if val is not None and val != "" and val != []:
                 if key == "tool_calls" and isinstance(val, list):
@@ -106,7 +113,10 @@ async def stream_inference(params: dict):
                 msg_dict[key] = val
         msg_dict.setdefault("role", "assistant")
         msg_dict.setdefault("content", "")
-        yield {"message": msg_dict, "done": chunk.get("done", False)}
+        sanitized = {"message": msg_dict, "done": chunk.get("done", False)}
+        if "done_reason" in chunk:
+            sanitized["done_reason"] = chunk["done_reason"]
+        yield sanitized
 
 
 async def run_node(server_url: str, models: list[dict], ollama_version: str) -> None:
@@ -178,14 +188,15 @@ async def run_node(server_url: str, models: list[dict], ollama_version: str) -> 
         logger.info("Inference request %s for %s", request_id[:8], ollama_params.get("model", "?"))
         try:
             async for chunk in stream_inference(ollama_params):
-                await ws.send(json.dumps({
+                payload = json.dumps({
                     "type": "inference_chunk",
                     "request_id": request_id,
-                    "chunk": {
-                        "message": chunk.get("message", {}),
-                        "done": chunk.get("done", False),
-                    },
-                }))
+                    "chunk": chunk,
+                })
+                if len(payload.encode()) > MAX_CHUNK_BYTES:
+                    logger.warning("Dropping oversized chunk (%d bytes) for %s", len(payload.encode()), request_id[:8])
+                    continue
+                await ws.send(payload)
             logger.info("Inference complete: %s", request_id[:8])
         except asyncio.CancelledError:
             logger.info("Inference cancelled: %s", request_id[:8])

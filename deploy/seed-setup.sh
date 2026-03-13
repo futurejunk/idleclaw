@@ -71,6 +71,14 @@ ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
 if [ -d "${INSTALL_DIR}/.git" ]; then
   echo "[OK] Repo already cloned at ${INSTALL_DIR}"
   cd "${INSTALL_DIR}" && git pull
+elif [ -d "${INSTALL_DIR}" ]; then
+  echo "[..] Directory exists without git — initializing repo..."
+  git clone "${REPO_URL}" /tmp/idleclaw-tmp
+  cp -r /tmp/idleclaw-tmp/.git "${INSTALL_DIR}/.git"
+  rm -rf /tmp/idleclaw-tmp
+  sudo chown -R ubuntu:ubuntu "${INSTALL_DIR}"
+  cd "${INSTALL_DIR}" && git checkout -- . && git pull
+  echo "[OK] Git repo initialized"
 else
   echo "[..] Cloning repo to ${INSTALL_DIR}..."
   sudo mkdir -p "${INSTALL_DIR}"

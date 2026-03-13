@@ -40,11 +40,11 @@ fi
 
 echo "=== Deploying to seed node: ${HOST} ==="
 
-# Build the remote command
-REMOTE_CMD='cd /opt/idleclaw && git pull && cd node-agent && .venv/bin/pip install -e .'
+# Build the remote command — check for git repo first
+REMOTE_CMD='cd /opt/idleclaw && if [ ! -d .git ]; then echo "Error: No git repo at /opt/idleclaw. Run seed-setup.sh on this node first." >&2; exit 1; fi && git pull && cd node-agent && .venv/bin/pip install -e .'
 
 # Add model pulls if requested
-for model in "${PULL_MODELS[@]}"; do
+for model in "${PULL_MODELS[@]+"${PULL_MODELS[@]}"}"; do
   REMOTE_CMD+=" && ollama pull $(printf '%q' "${model}")"
 done
 

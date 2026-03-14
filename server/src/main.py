@@ -102,15 +102,20 @@ async def lifespan(app: FastAPI):
     # Initialize NLP classifiers in a thread to avoid blocking startup
     if settings.nlp_enabled:
         loop = asyncio.get_running_loop()
-        try:
-            toxicity_classifier = await loop.run_in_executor(
-                None, create_toxicity_classifier, settings.nlp_model_dir
-            )
-            injection_classifier = await loop.run_in_executor(
-                None, create_injection_classifier, settings.nlp_model_dir
-            )
-        except Exception:
-            logger.warning("NLP classifier initialization failed — continuing with regex-only", exc_info=True)
+        if settings.nlp_toxicity_enabled:
+            try:
+                toxicity_classifier = await loop.run_in_executor(
+                    None, create_toxicity_classifier, settings.nlp_model_dir
+                )
+            except Exception:
+                logger.warning("Toxicity classifier init failed — continuing without", exc_info=True)
+        if settings.nlp_injection_enabled:
+            try:
+                injection_classifier = await loop.run_in_executor(
+                    None, create_injection_classifier, settings.nlp_model_dir
+                )
+            except Exception:
+                logger.warning("Injection classifier init failed — continuing without", exc_info=True)
 
     # Rebuild content filter with NLP classifiers
     content_filter = ContentFilter(

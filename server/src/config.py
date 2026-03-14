@@ -55,6 +55,8 @@ class Settings(BaseSettings):
 
     # NLP content classification
     nlp_enabled: bool = True
+    nlp_toxicity_enabled: bool = True
+    nlp_injection_enabled: bool = True
     nlp_model_dir: str = "data/models"
     nlp_block_threshold: float = 0.85
     nlp_log_threshold: float = 0.50

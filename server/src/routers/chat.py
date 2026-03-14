@@ -16,12 +16,9 @@ from server.src.services.router import RequestRouter
 from server.src.services.tool_execution import execute_tool_calls
 from server.src.services.tool_parser import ContentTagStripper, parse_tool_calls, strip_tool_tags
 from server.src.services.tool_registry import tool_registry
-from server.src.services.content_filter import ContentFilter
 from server.src.config import settings
 
 logger = logging.getLogger(__name__)
-
-content_filter = ContentFilter(settings.inbound_blocklist, settings.outbound_blocklist)
 
 router = APIRouter()
 
@@ -30,19 +27,41 @@ MAX_TOOL_ROUNDS = 5
 MAX_TOTAL_PAYLOAD_CHARS = 100_000
 
 
+def _prepend_system_prompt(messages: list[dict]) -> list[dict]:
+    """Prepend the safety system prompt to the message list."""
+    prompt = settings.safety_system_prompt
+    if not prompt:
+        return messages
+
+    # If the first message is already a system message, prepend to its content
+    if messages and messages[0].get("role") == "system":
+        messages = list(messages)
+        messages[0] = {
+            **messages[0],
+            "content": prompt + "\n\n" + messages[0]["content"],
+        }
+        return messages
+
+    return [{"role": "system", "content": prompt}] + messages
+
+
 @router.post("/api/chat")
 async def chat(request: ChatRequest):
-    from server.src.main import registry, request_queues, request_node_map, stats
+    from server.src.main import registry, request_queues, request_node_map, stats, content_filter
 
     # Payload size validation
     total_chars = sum(len(m.content) for m in request.messages)
     if total_chars > MAX_TOTAL_PAYLOAD_CHARS:
         raise HTTPException(status_code=422, detail=f"Total payload too large: {total_chars} chars (max {MAX_TOTAL_PAYLOAD_CHARS})")
 
-    # Content filter: check inbound messages
+    # Content filter: layered inbound check (regex → injection → toxicity)
     messages_raw = [{"role": m.role, "content": m.content} for m in request.messages]
-    blocked_pattern = content_filter.check_inbound(messages_raw)
-    if blocked_pattern:
+    result = content_filter.check_inbound(messages_raw)
+    if result.blocked:
+        logger.warning(
+            "Inbound message blocked",
+            extra={"reason": result.reason, "scores": result.nlp_scores, "label": result.matched_label},
+        )
         raise HTTPException(status_code=400, detail="Message content not allowed")
 
     # Find the best node for the requested model
@@ -59,8 +78,10 @@ async def chat(request: ChatRequest):
     capabilities = node.get_model_capabilities(request.model)
     supports_native_tools = capabilities.get("tool_calls", False)
 
-    # Build initial ollama_params with tools
+    # Build initial ollama_params with tools and prepend system prompt
     ollama_params = build_ollama_params(request, node, tool_registry)
+    ollama_params["messages"] = _prepend_system_prompt(ollama_params["messages"])
+
     tools_offered = "tools" in ollama_params or (
         not tool_registry.is_empty() and not supports_native_tools
     )
@@ -78,6 +99,7 @@ async def chat(request: ChatRequest):
         tool_round = 0
         request_error: str | None = None
         tag_stripper = ContentTagStripper()
+        total_response_chars = 0
 
         try:
             while True:
@@ -148,6 +170,18 @@ async def chat(request: ChatRequest):
                             yield {"data": json.dumps(chunk)}
                         if content:
                             accumulated_content += content
+                            total_response_chars += len(content)
+
+                            # Response char limit
+                            if total_response_chars > settings.max_response_chars:
+                                logger.info(
+                                    "Response char limit reached (%d), terminating stream",
+                                    total_response_chars,
+                                    extra={"request_id": request_id},
+                                )
+                                yield {"data": "[DONE]"}
+                                return
+
                             display_content = tag_stripper.feed(content)
                             display_content = content_filter.filter_outbound(display_content)
                             if display_content:
@@ -182,6 +216,29 @@ async def chat(request: ChatRequest):
                             "choices": [{"delta": {"content": remaining}, "index": 0}],
                         }
                         yield {"data": json.dumps(flush_chunk)}
+
+                    # Post-stream outbound NLP classification
+                    if accumulated_content:
+                        try:
+                            outbound_result = await content_filter.classify_outbound_async(
+                                accumulated_content
+                            )
+                            if outbound_result.blocked:
+                                logger.critical(
+                                    "Outbound content flagged",
+                                    extra={
+                                        "node_id": node.node_id,
+                                        "model": request.model,
+                                        "reason": outbound_result.reason,
+                                        "scores": outbound_result.nlp_scores,
+                                        "label": outbound_result.matched_label,
+                                        "snippet": accumulated_content[:200],
+                                    },
+                                )
+                                registry.adjust_reputation(node.node_id, -0.10)
+                        except Exception:
+                            logger.exception("Outbound NLP classification failed")
+
                     yield {"data": "[DONE]"}
                     return
 
@@ -293,4 +350,17 @@ async def chat(request: ChatRequest):
             except Exception:
                 pass
 
-    return EventSourceResponse(event_generator())
+    # Wrap with response timeout
+    async def timed_event_generator():
+        try:
+            async with asyncio.timeout(settings.response_timeout_seconds):
+                async for event in event_generator():
+                    yield event
+        except TimeoutError:
+            logger.info(
+                "Response timeout reached (%ds), terminating stream",
+                settings.response_timeout_seconds,
+            )
+            yield {"data": "[DONE]"}
+
+    return EventSourceResponse(timed_event_generator())

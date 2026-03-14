@@ -97,13 +97,27 @@ async def probe_node(
             pass
 
     passed = validate_probe_response(accumulated, expected_pattern)
-    logger.info(
-        "Probe result for node %s: %s (response: %.100s)",
-        node.node_id,
-        "pass" if passed else "fail",
-        accumulated,
-    )
-    return passed
+    if not passed:
+        logger.info("Probe failed (pattern) for node %s (response: %.100s)", node.node_id, accumulated)
+        return False
+
+    # NLP toxicity check on probe response (if available)
+    from server.src.main import content_filter
+    if content_filter._toxicity and content_filter._toxicity.available:
+        try:
+            from server.src.config import settings
+            flagged, scores = content_filter._toxicity.check(accumulated, settings.nlp_block_threshold)
+            if flagged:
+                logger.warning(
+                    "Probe response toxic for node %s: %s (response: %.100s)",
+                    node.node_id, scores, accumulated,
+                )
+                return False
+        except Exception:
+            logger.debug("NLP probe check failed for node %s", node.node_id, exc_info=True)
+
+    logger.info("Probe passed for node %s (response: %.100s)", node.node_id, accumulated)
+    return True
 
 
 async def probe_loop(

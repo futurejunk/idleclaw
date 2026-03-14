@@ -11,22 +11,22 @@ class TestCheckInbound:
     def test_clean_prompt_allowed(self):
         cf = ContentFilter(INBOUND, OUTBOUND)
         result = cf.check_inbound([{"role": "user", "content": "What is the weather?"}])
-        assert result is None
+        assert not result.blocked
 
     def test_script_tag_blocked(self):
         cf = ContentFilter(INBOUND, OUTBOUND)
         result = cf.check_inbound([{"role": "user", "content": "Hello <script>alert(1)</script>"}])
-        assert result is not None
+        assert result.blocked
 
     def test_javascript_uri_blocked(self):
         cf = ContentFilter(INBOUND, OUTBOUND)
         result = cf.check_inbound([{"role": "user", "content": "Visit javascript:alert(1)"}])
-        assert result is not None
+        assert result.blocked
 
     def test_data_uri_blocked(self):
         cf = ContentFilter(INBOUND, OUTBOUND)
         result = cf.check_inbound([{"role": "user", "content": "See data:text/html,<h1>hi</h1>"}])
-        assert result is not None
+        assert result.blocked
 
     def test_multiple_messages_checks_all(self):
         cf = ContentFilter(INBOUND, OUTBOUND)
@@ -34,12 +34,17 @@ class TestCheckInbound:
             {"role": "user", "content": "Hello"},
             {"role": "user", "content": "<script>alert(1)</script>"},
         ]
-        assert cf.check_inbound(messages) is not None
+        assert cf.check_inbound(messages).blocked
 
     def test_case_insensitive(self):
         cf = ContentFilter(INBOUND, OUTBOUND)
         result = cf.check_inbound([{"role": "user", "content": "<SCRIPT>alert(1)</SCRIPT>"}])
-        assert result is not None
+        assert result.blocked
+
+    def test_blocked_result_has_reason(self):
+        cf = ContentFilter(INBOUND, OUTBOUND)
+        result = cf.check_inbound([{"role": "user", "content": "<script>alert(1)</script>"}])
+        assert result.reason == "regex"
 
 
 class TestFilterOutbound:
@@ -60,5 +65,5 @@ class TestFilterOutbound:
 
     def test_empty_patterns(self):
         cf = ContentFilter([], [])
-        assert cf.check_inbound([{"role": "user", "content": "<script>"}]) is None
+        assert not cf.check_inbound([{"role": "user", "content": "<script>"}]).blocked
         assert cf.filter_outbound("<script>alert(1)") == "<script>alert(1)"

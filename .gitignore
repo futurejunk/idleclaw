@@ -37,6 +37,7 @@ security/red-team/
 
 # Server runtime data
 server/data/stats.json
+server/data/models/
 
 # OpenSpec
 openspec/

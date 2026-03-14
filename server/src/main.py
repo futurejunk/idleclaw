@@ -15,6 +15,12 @@ from server.src.services.registry import NodeRegistry
 from server.src.services.stats import ServerStats
 from server.src.services.node_prober import probe_loop
 from server.src.services.tool_registry import tool_registry
+from server.src.services.nlp_classifier import (
+    NLPClassifier,
+    create_toxicity_classifier,
+    create_injection_classifier,
+)
+from server.src.services.content_filter import ContentFilter
 from server.src.ws.node_handler import node_websocket
 
 
@@ -61,6 +67,13 @@ stats = ServerStats()
 request_queues: dict[str, asyncio.Queue] = {}
 request_node_map: dict[str, str] = {}  # request_id -> node_id
 
+# NLP classifiers and content filter (initialized at startup)
+toxicity_classifier: NLPClassifier | None = None
+injection_classifier: NLPClassifier | None = None
+content_filter: ContentFilter = ContentFilter(
+    settings.inbound_blocklist, settings.outbound_blocklist
+)
+
 PING_INTERVAL = 30  # seconds
 
 
@@ -77,12 +90,38 @@ async def _ping_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global toxicity_classifier, injection_classifier, content_filter
+
     tool_registry.freeze()
     health.set_start_time(time.time())
     stats.load(settings.stats_file)
     stats.start_persistence(settings.stats_file)
     registry.start_eviction()
     rate_limiter.start_cleanup()
+
+    # Initialize NLP classifiers in a thread to avoid blocking startup
+    if settings.nlp_enabled:
+        loop = asyncio.get_running_loop()
+        try:
+            toxicity_classifier = await loop.run_in_executor(
+                None, create_toxicity_classifier, settings.nlp_model_dir
+            )
+            injection_classifier = await loop.run_in_executor(
+                None, create_injection_classifier, settings.nlp_model_dir
+            )
+        except Exception:
+            logger.warning("NLP classifier initialization failed — continuing with regex-only", exc_info=True)
+
+    # Rebuild content filter with NLP classifiers
+    content_filter = ContentFilter(
+        settings.inbound_blocklist,
+        settings.outbound_blocklist,
+        toxicity_classifier=toxicity_classifier,
+        injection_classifier=injection_classifier,
+        block_threshold=settings.nlp_block_threshold,
+        log_threshold=settings.nlp_log_threshold,
+    )
+
     ping_task = asyncio.create_task(_ping_loop())
     probe_task = asyncio.create_task(
         probe_loop(registry, request_queues, request_node_map, settings.probe_interval_seconds)

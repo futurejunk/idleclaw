@@ -1,6 +1,6 @@
 # IdleClaw Security Assessment
 
-**Last updated:** 2026-03-06
+**Last updated:** 2026-03-14
 **Scope:** Full application stack (frontend, server, node-agent, skill)
 
 ## Threat Model
@@ -57,6 +57,10 @@ White-box code review and proof-of-concept testing across all components. Findin
 - Tool registry frozen after startup
 - Node registration limits: max 3 per IP, max concurrent requests capped
 - Server binds to localhost, accessed through Caddy with auto-TLS
+- NLP content classification: layered inbound (regex → injection → toxicity) and post-stream outbound (toxicity + injection)
+- Safety system prompt: prepended to all conversations, instructs model to refuse harmful requests
+- Response compute limits: max 4096 chars, 120s timeout
+- Node probing with NLP toxicity check on responses
 
 ### Client-Side (Skill and Node-Agent)
 - Inference parameter whitelist: only known keys forwarded to Ollama
